@@ -1,0 +1,53 @@
+{
+  "name": "gruvbox-dark",
+  "appearance": "dark",
+  "colors": {
+    "brand": "#83A598",
+    "wordmarkHighlight": "#83A598",
+    "wordmarkShadow": "#282828",
+    "signal": "#83A598",
+    "orbit": "#8EC07C",
+    "accent": "#83A598",
+    "userMessageBg": "#282828",
+    "text": "#EBDBB2",
+    "muted": "#EBDBB2",
+    "dim": "#83A598",
+    "border": "#282828",
+    "line": "#83A598",
+    "success": "#B8BB26",
+    "warning": "#FABD2F",
+    "error": "#FB4934"
+  },
+  "ansi": {
+    "brand": "cyanBright",
+    "wordmarkHighlight": "whiteBright",
+    "wordmarkShadow": "cyan",
+    "signal": "cyanBright",
+    "orbit": "cyan",
+    "accent": "cyanBright",
+    "text": "whiteBright",
+    "muted": "white",
+    "dim": "gray",
+    "border": "gray",
+    "line": "gray",
+    "success": "greenBright",
+    "warning": "yellowBright",
+    "error": "redBright"
+  },
+  "syntax": {
+    "blue": "#83A598",
+    "flamingo": "#FE8019",
+    "green": "#B8BB26",
+    "mauve": "#D3869B",
+    "overlay2": "#83A598",
+    "peach": "#FE8019",
+    "pink": "#D3869B",
+    "red": "#FB4934",
+    "sapphire": "#8EC07C",
+    "subtext0": "#EBDBB2",
+    "teal": "#8EC07C",
+    "text": "#EBDBB2",
+    "yellow": "#FABD2F"
+  },
+  "logo": "#83A598"
+}

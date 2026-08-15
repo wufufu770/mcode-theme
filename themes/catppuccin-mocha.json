@@ -1,0 +1,53 @@
+{
+  "name": "catppuccin-mocha",
+  "appearance": "dark",
+  "colors": {
+    "brand": "#89B4FA",
+    "wordmarkHighlight": "#89B4FA",
+    "wordmarkShadow": "#1E1E2E",
+    "signal": "#89B4FA",
+    "orbit": "#94E2D5",
+    "accent": "#89B4FA",
+    "userMessageBg": "#1E1E2E",
+    "text": "#CDD6F4",
+    "muted": "#CDD6F4",
+    "dim": "#89B4FA",
+    "border": "#1E1E2E",
+    "line": "#89B4FA",
+    "success": "#A6E3A1",
+    "warning": "#F9E2AF",
+    "error": "#F38BA8"
+  },
+  "ansi": {
+    "brand": "cyanBright",
+    "wordmarkHighlight": "whiteBright",
+    "wordmarkShadow": "cyan",
+    "signal": "cyanBright",
+    "orbit": "cyan",
+    "accent": "cyanBright",
+    "text": "whiteBright",
+    "muted": "white",
+    "dim": "gray",
+    "border": "gray",
+    "line": "gray",
+    "success": "greenBright",
+    "warning": "yellowBright",
+    "error": "redBright"
+  },
+  "syntax": {
+    "blue": "#89B4FA",
+    "flamingo": "#FAB387",
+    "green": "#A6E3A1",
+    "mauve": "#CBA6F7",
+    "overlay2": "#89B4FA",
+    "peach": "#FAB387",
+    "pink": "#F5C2E7",
+    "red": "#F38BA8",
+    "sapphire": "#89DCEB",
+    "subtext0": "#CDD6F4",
+    "teal": "#89DCEB",
+    "text": "#CDD6F4",
+    "yellow": "#F9E2AF"
+  },
+  "logo": "#89B4FA"
+}

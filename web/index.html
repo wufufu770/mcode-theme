@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MiniMax Code 主题配置器</title>
+<style>
+:root {
+  --brand:#68C0FF; --hl:#93D2FF; --shadow:#3DAEFF; --signal:#68C0FF; --orbit:#1CCDD2;
+  --accent:#68C0FF; --umbg:#1E3A5F; --text:#EDEDED; --muted:#ADADAD; --dim:#7A7A7A;
+  --border:#2A3A4E; --line:#3D5A7A; --success:#28C567; --warning:#FFC340; --error:#FF5E6C;
+  --syn-blue:#68C0FF; --syn-flamingo:#F2CDCD; --syn-green:#A6E3A1; --syn-mauve:#93D2FF;
+  --syn-overlay:#8B949E; --syn-peach:#FAB387; --syn-pink:#F5C2E7; --syn-red:#FF5E6C;
+  --syn-sapphire:#74C7EC; --syn-subtext:#A6ADC8; --syn-teal:#1CCDD2; --syn-text:#EDEDED; --syn-yellow:#F9E2AF;
+  --font: ui-monospace, Consolas, monospace;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:var(--font); background:#11151c; color:#e6e9ef; height:100vh; display:flex; flex-direction:column; }
+header { display:flex; align-items:center; gap:14px; padding:10px 20px; background:#171c26; border-bottom:1px solid #2a3242; }
+header .logo { display:flex; align-items:center; gap:10px; }
+header .logo svg { width:30px; height:30px; border-radius:7px; }
+header h1 { font-size:16px; font-weight:700; }
+header .spacer { flex:1; }
+.badge { font-size:11px; padding:3px 9px; border-radius:20px; background:#1d2634; color:#9fb2c8; border:1px solid #2e3a4e; }
+#btn-apply { background:var(--brand); color:#08121c; border:none; padding:8px 18px; border-radius:6px; font-weight:700; cursor:pointer; font-family:var(--font); font-size:13px; }
+#btn-apply:hover { filter:brightness(1.15); }
+#btn-restore { background:#232b3a; color:#cbd5e1; border:1px solid #34415a; padding:8px 14px; border-radius:6px; cursor:pointer; font-family:var(--font); font-size:13px; }
+.layout { display:flex; flex:1; overflow:hidden; }
+nav { width:230px; background:#141922; border-right:1px solid #232c3d; padding:14px 10px; overflow-y:auto; }
+nav .group-label { font-size:10px; color:#7a8aa0; text-transform:uppercase; letter-spacing:1px; margin:14px 6px 6px; }
+nav button { display:block; width:100%; text-align:left; padding:9px 12px; margin:2px 0; background:none; border:none; color:#b9c4d4; border-radius:6px; cursor:pointer; font-family:var(--font); font-size:13px; }
+nav button:hover { background:#1c2433; color:#fff; }
+nav button.active { background:var(--brand); color:#08121c; font-weight:700; }
+nav button .desc { display:block; font-size:10px; color:#7a8aa0; margin-top:2px; }
+main { flex:1; display:flex; overflow:hidden; }
+.panel { flex:1; padding:20px 24px; overflow-y:auto; }
+.panel h2 { font-size:15px; margin-bottom:4px; }
+.panel .hint { font-size:12px; color:#8a99ad; margin-bottom:16px; }
+.color-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px; }
+.color-item { background:#1a212e; border:1px solid #283245; border-radius:8px; padding:10px 12px; display:flex; align-items:center; gap:10px; }
+.color-item .swatch { width:38px; height:38px; border-radius:6px; border:2px solid #34415a; cursor:pointer; position:relative; overflow:hidden; flex-shrink:0; }
+.color-item .swatch input[type=color] { position:absolute; inset:-8px; width:60px; height:60px; opacity:0; cursor:pointer; }
+.color-item .meta { flex:1; min-width:0; }
+.color-item .meta .name { font-size:12px; font-weight:700; color:#dbe3ee; }
+.color-item .meta .usage { font-size:10px; color:#7a8aa0; margin-top:1px; }
+.color-item .hex { width:84px; background:#0f141c; border:1px solid #2c3749; color:#dbe3ee; border-radius:5px; padding:5px 7px; font-family:var(--font); font-size:12px; text-align:center; }
+.color-item .hex:focus { outline:2px solid var(--brand); }
+select, input[type=text] { background:#0f141c; color:#dbe3ee; border:1px solid #2c3749; border-radius:5px; padding:6px 10px; font-family:var(--font); font-size:12px; }
+select:focus, input[type=text]:focus { outline:2px solid var(--brand); }
+.toolbar { display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
+.btn { background:#232b3a; color:#cbd5e1; border:1px solid #34415a; padding:7px 14px; border-radius:6px; cursor:pointer; font-family:var(--font); font-size:12px; }
+.btn:hover { background:#2b3547; }
+.btn.primary { background:var(--brand); color:#08121c; font-weight:700; }
+.row { display:flex; gap:12px; align-items:center; margin-bottom:10px; }
+/* preview */
+#preview-wrap { width:480px; background:#0c1016; border-left:1px solid #232c3d; display:flex; flex-direction:column; }
+#preview-wrap .pv-head { padding:8px 14px; font-size:11px; color:#7a8aa0; border-bottom:1px solid #232c3d; display:flex; justify-content:space-between; }
+#preview { flex:1; padding:18px 16px; overflow-y:auto; }
+.pv-app { border:1px solid var(--border); border-radius:10px; background:#0f141c; overflow:hidden; }
+.pv-top { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--line); }
+.pv-logo { display:flex; align-items:center; gap:8px; }
+.pv-logo svg { width:26px; height:26px; border-radius:6px; }
+.pv-name { font-weight:800; font-size:14px; letter-spacing:.5px; }
+.pv-name .a { color:var(--hl); text-shadow:0 0 6px var(--brand); }
+.pv-name .b { color:var(--brand); text-shadow:0 0 6px var(--shadow); }
+.pv-top .status { margin-left:auto; display:flex; align-items:center; gap:10px; font-size:10px; }
+.dot { width:8px; height:8px; border-radius:50%; background:var(--signal); box-shadow:0 0 6px var(--signal); }
+.pv-body { padding:14px; }
+.pv-border-hint { border:1px dashed var(--line); border-radius:8px; padding:8px; margin-bottom:10px; text-align:center; font-size:10px; color:var(--dim); }
+.pv-user { background:var(--umbg); color:var(--text); border-radius:9px; padding:10px 12px; margin-bottom:10px; font-size:12px; }
+.pv-user .tag { font-size:9px; color:var(--muted); margin-bottom:4px; }
+.pv-ai { color:var(--text); font-size:12px; line-height:1.65; margin-bottom:10px; }
+.pv-ai .muted { color:var(--muted); }
+.pv-ai .dim { color:var(--dim); }
+.pv-ai .hl { color:var(--brand); }
+.pv-ai .succ { color:var(--success); }
+.pv-ai .warn { color:var(--warning); }
+.pv-ai .err { color:var(--error); }
+.pv-code { border:1px solid var(--border); border-left:3px solid var(--brand); border-radius:6px; padding:10px 12px; margin:10px 0; font-size:11px; overflow-x:auto; background:#0d1117; }
+.pv-code .k { color:var(--syn-mauve); } .pv-code .s { color:var(--syn-green); } .pv-code .f { color:var(--syn-blue); }
+.pv-code .n { color:var(--syn-peach); } .pv-code .c { color:var(--syn-overlay); } .pv-code .t { color:var(--syn-teal); }
+.pv-code .y { color:var(--syn-yellow); } .pv-code .r { color:var(--syn-red); }
+.pv-foot { display:flex; gap:6px; padding:10px 14px; border-top:1px solid var(--line); align-items:center; font-size:10px; color:var(--dim); }
+.pv-foot .plan-badge { background:var(--accent); color:#0a0f16; font-weight:800; padding:2px 8px; border-radius:4px; font-size:9px; }
+.pv-foot .perm { color:var(--muted); }
+.pv-input { margin-top:8px; border:1px solid var(--border); border-radius:6px; padding:8px 10px; color:var(--text); font-size:12px; background:#0d1117; }
+.pv-input:focus { outline:2px solid var(--accent); }
+.pv-alert { border-radius:6px; padding:8px 10px; font-size:11px; margin:8px 0; }
+.pv-alert.success { background:color-mix(in srgb, var(--success) 14%, transparent); color:var(--success); border:1px solid var(--success); }
+.pv-alert.warning { background:color-mix(in srgb, var(--warning) 14%, transparent); color:var(--warning); border:1px solid var(--warning); }
+.pv-alert.error { background:color-mix(in srgb, var(--error) 14%, transparent); color:var(--error); border:1px solid var(--error); }
+#toast { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--success); color:#07130b; padding:10px 22px; border-radius:8px; font-weight:700; font-size:13px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:99; }
+#toast.show { opacity:1; }
+#toast.err { background:var(--error); color:#fff; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+      <rect width="80" height="80" rx="18" fill="var(--brand)"/>
+      <text x="40" y="52" font-size="40" font-weight="900" text-anchor="middle" fill="#0a121c" font-family="Arial">M</text>
+    </svg>
+    <h1>MiniMax Code <span style="color:var(--brand)">主题配置器</span></h1>
+  </div>
+  <div class="spacer"></div>
+  <span class="badge" id="badge-version">mcode: ...</span>
+  <span class="badge" id="badge-theme">主题: -</span>
+  <span class="badge" id="badge-plan">Plan: -</span>
+  <button id="btn-save" title="将当前配色保存为新主题">保存主题</button>
+  <button id="btn-restore">恢复官方</button>
+  <button id="btn-apply">应用到 mcode</button>
+</header>
+
+<div class="layout">
+  <nav id="nav"></nav>
+
+  <main>
+    <div class="panel" id="panel"></div>
+    <div id="preview-wrap">
+      <div class="pv-head"><span>实时预览（模拟 mcode 界面）</span><span id="pv-font-label">字体: 系统</span></div>
+      <div id="preview"></div>
+    </div>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+let STATE = null;
+let currentPanel = 'ui';
+let dirty = {};   // { 'colors.brand': '#xxxxxx' }
+const USAGE = {
+  brand:'Logo/标题/品牌', wordmarkHighlight:'Logo 高光', wordmarkShadow:'Logo 阴影',
+  signal:'状态点/强调', orbit:'辅助强调', accent:'链接/代码/选中/徽标',
+  userMessageBg:'用户消息背景', text:'正文文字', muted:'弱化文字', dim:'次级文字',
+  border:'边框', line:'分隔线', success:'成功/完成', warning:'警告', error:'错误'
+};
+const SYN_USAGE = {
+  blue:'函数名/属性', flamingo:'符号/类', green:'字符串', mauve:'关键字', overlay2:'注释',
+  peach:'数字/字面量', pink:'正则', red:'内置/删除', sapphire:'链接', subtext0:'次级文本',
+  teal:'标签/标记', text:'默认文本', yellow:'类型/类名'
+};
+const ANSI_USAGE = {
+  brand:'品牌(8色)', wordmarkHighlight:'Logo高光', wordmarkShadow:'Logo阴影', signal:'状态点',
+  orbit:'辅助', accent:'强调', text:'正文', muted:'弱化', dim:'次级', border:'边框', line:'分隔线',
+  success:'成功', warning:'警告', error:'错误'
+};
+
+const MODULES = [
+  { id:'ui', name:'UI 配色', desc:'界面主色调 · 15 键', keys:'colors', usage:USAGE },
+  { id:'syntax', name:'代码语法高亮', desc:'代码块配色 · 13 键', keys:'syntax', usage:SYN_USAGE },
+  { id:'ansi', name:'ANSI 8 色回退', desc:'低色深终端 · 14 键', keys:'ansi', usage:ANSI_USAGE },
+  { id:'plan', name:'Plan 模式主题', desc:'Shift+Tab 自动切换', keys:null },
+  { id:'logo', name:'Logo 颜色', desc:'登录页品牌色', keys:null },
+  { id:'font', name:'字体', desc:'预览字体 + 终端指引', keys:null },
+];
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+async function api(path, body){
+  const opt = body ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)} : {};
+  const r = await fetch(path, opt);
+  // 兼容: 标准 Response 或已解析对象
+  const j = (typeof r.json === 'function') ? await r.json().catch(()=>({})) : r;
+  if(r.ok === false) throw new Error(j.error || r.status);
+  return j;
+}
+
+function applyCSSVars(theme){
+  const c = theme.colors||{};
+  const s = theme.syntax||{};
+  const st = document.documentElement.style;
+  st.setProperty('--brand',c.brand); st.setProperty('--hl',c.wordmarkHighlight); st.setProperty('--shadow',c.wordmarkShadow);
+  st.setProperty('--signal',c.signal); st.setProperty('--orbit',c.orbit); st.setProperty('--accent',c.accent);
+  st.setProperty('--umbg',c.userMessageBg); st.setProperty('--text',c.text); st.setProperty('--muted',c.muted);
+  st.setProperty('--dim',c.dim); st.setProperty('--border',c.border); st.setProperty('--line',c.line);
+  st.setProperty('--success',c.success); st.setProperty('--warning',c.warning); st.setProperty('--error',c.error);
+  st.setProperty('--syn-blue',s.blue); st.setProperty('--syn-flamingo',s.flamingo); st.setProperty('--syn-green',s.green);
+  st.setProperty('--syn-mauve',s.mauve); st.setProperty('--syn-overlay',s.overlay2); st.setProperty('--syn-peach',s.peach);
+  st.setProperty('--syn-pink',s.pink); st.setProperty('--syn-red',s.red); st.setProperty('--syn-sapphire',s.sapphire);
+  st.setProperty('--syn-subtext',s.subtext0); st.setProperty('--syn-teal',s.teal); st.setProperty('--syn-text',s.text);
+  st.setProperty('--syn-yellow',s.yellow);
+}
+
+function renderPreview(){
+  const font = localStorage.getItem('mcode-theme-font') || '';
+  document.documentElement.style.setProperty('--font', font || "ui-monospace, Consolas, monospace");
+  $('#pv-font-label').textContent = '字体: ' + (localStorage.getItem('mcode-theme-font-name') || '系统');
+  $('#preview').innerHTML = `
+  <div class="pv-app">
+    <div class="pv-top">
+      <div class="pv-logo">
+        <svg viewBox="0 0 80 80"><rect width="80" height="80" rx="18" fill="var(--brand)"/><text x="40" y="52" font-size="40" font-weight="900" text-anchor="middle" fill="#0a121c" font-family="Arial">M</text></svg>
+        <span class="pv-name"><span class="a">MiniMax</span><span class="b"> Code</span></span>
+      </div>
+      <div class="status"><span class="dot"></span><span style="color:var(--signal)">Ready</span><span style="color:var(--muted)">✦ MiniMax-M3</span></div>
+    </div>
+    <div class="pv-body">
+      <div class="pv-border-hint">border: var(--border) · line: var(--line)</div>
+      <div class="pv-alert success">✓ 已添加 · success 色</div>
+      <div class="pv-alert warning">⚠ 学号已存在 · warning 色</div>
+      <div class="pv-alert error">✗ 连接失败 · error 色</div>
+      <div class="pv-user"><div class="tag">You · userMessageBg</div>帮我写一个计算平均分的函数</div>
+      <div class="pv-ai">
+        <span class="hl">def average</span>(scores: <span class="succ">list[float]</span>) -&gt; <span class="succ">float</span>:<br>
+        <span class="muted"># 注释用 muted · 次级文字 dim</span><br>
+        <span class="dim">链接用 brand 色 · </span><span class="hl">accent 强调</span><br>
+        <span class="muted">代码块：</span>
+      </div>
+      <div class="pv-code">
+        <span class="k">def</span> <span class="f">average</span>(scores):<br>
+        &nbsp;&nbsp;<span class="s">"""计算平均分"""</span><br>
+        &nbsp;&nbsp;<span class="k">return</span> <span class="f">sum</span>(scores) / <span class="f">len</span>(scores)
+      </div>
+      <div class="pv-ai">搞定 ✅ <span class="succ">5 个测试全过</span></div>
+    </div>
+    <div class="pv-foot">
+      <span class="plan-badge">PLAN</span>
+      <span class="perm">Auto</span>
+      <span class="perm">·</span><span>~/projects</span>
+    </div>
+    <div class="pv-input" contenteditable="true">输入框 · Enter send</div>
+  </div>`;
+}
+
+function colorItem(key, val, usage, prefix){
+  return `<div class="color-item">
+    <div class="swatch" style="background:${val}"><input type="color" id="${prefix}-${key}" value="${val}" data-key="${key}"></div>
+    <div class="meta"><div class="name">${key}</div><div class="usage">${usage[key]||''}</div></div>
+    <input class="hex" value="${val}" data-hex="${key}">
+  </div>`;
+}
+
+async function loadTheme(name){
+  const t = await api('/api/theme/' + name);
+  STATE.activeTheme = t;
+  applyCSSVars(t);
+  dirty = {};
+  renderPreview();
+  renderPanel();
+  $('#badge-theme').textContent = '主题: ' + t.name + (t.appearance==='light'?' (亮)':'');
+}
+
+function currentThemeObj(){
+  const t = STATE.activeTheme || {};
+  const out = { name:t.name||'live-edit', appearance:t.appearance||'dark', colors:{}, ansi:{}, syntax:{}, logo:t.logo };
+  for(const k of STATE.uiKeys) out.colors[k] = $('#ui-'+k)?.value || t.colors?.[k];
+  for(const k of STATE.ansiKeys) out.ansi[k] = $('#ansi-'+k)?.value || t.ansi?.[k];
+  for(const k of STATE.syntaxKeys) out.syntax[k] = $('#syn-'+k)?.value || t.syntax?.[k];
+  return out;
+}
+
+function renderPanel(){
+  const p = $('#panel');
+  const t = STATE.activeTheme || {colors:{},ansi:{},syntax:{}};
+  if(currentPanel==='ui'){
+    p.innerHTML = `<h2>UI 配色</h2><div class="hint">调整 mcode 界面主色调，右侧实时预览。</div>
+      <div class="color-grid">${STATE.uiKeys.map(k=>colorItem(k, t.colors[k], USAGE, 'ui')).join('')}</div>`;
+    STATE.uiKeys.forEach(k=>{
+      const sw=$('#ui-'+k), hex=$('[data-hex="'+k+'"]');
+      sw.addEventListener('input',()=>{ hex.value=sw.value; onColorChange('colors',k,sw.value); });
+      hex.addEventListener('input',()=>{ if(/^#[0-9a-fA-F]{6}$/.test(hex.value)){ sw.value=hex.value; onColorChange('colors',k,hex.value);} });
+    });
+  } else if(currentPanel==='syntax'){
+    p.innerHTML = `<h2>代码语法高亮</h2><div class="hint">代码块配色（One Dark / Catppuccin 风格）。</div>
+      <div class="color-grid">${STATE.syntaxKeys.map(k=>colorItem(k, t.syntax[k], SYN_USAGE, 'syn')).join('')}</div>`;
+    STATE.syntaxKeys.forEach(k=>{
+      const sw=$('#syn-'+k), hex=$('[data-hex="'+k+'"]');
+      sw.addEventListener('input',()=>{ hex.value=sw.value; onColorChange('syntax',k,sw.value); });
+      hex.addEventListener('input',()=>{ if(/^#[0-9a-fA-F]{6}$/.test(hex.value)){ sw.value=hex.value; onColorChange('syntax',k,hex.value);} });
+    });
+  } else if(currentPanel==='ansi'){
+    p.innerHTML = `<h2>ANSI 8 色回退</h2><div class="hint">colorLevel=1 的低色深终端使用的 ANSI 命名色。</div>
+      <div class="color-grid">${STATE.ansiKeys.map(k=>colorItem(k, t.ansi[k], ANSI_USAGE, 'ansi')).join('')}</div>`;
+    STATE.ansiKeys.forEach(k=>{
+      const sw=$('#ansi-'+k), hex=$('[data-hex="'+k+'"]');
+      sw.addEventListener('input',()=>{ hex.value=sw.value; onColorChange('ansi',k,sw.value); });
+      hex.addEventListener('input',()=>{ if(/^#[0-9a-fA-F]{6}$/.test(hex.value)){ sw.value=hex.value; onColorChange('ansi',k,hex.value);} });
+    });
+  } else if(currentPanel==='plan'){
+    p.innerHTML = `<h2>Plan 模式主题</h2><div class="hint">按 Shift+Tab 进入 Plan 模式时，自动切换到所选主题；退出恢复当前主题。</div>
+      <div class="toolbar">
+        <select id="plan-select"><option value="">(不设置 Plan 主题)</option>
+          ${STATE.themes.map(n=>`<option value="${esc(n)}" ${STATE.planTheme===n?'selected':''}>${esc(n)}</option>`).join('')}
+        </select>
+        <button class="btn primary" id="plan-save">保存 Plan 主题</button>
+      </div>
+      <div class="row"><span class="badge">当前正常主题: ${esc(STATE.current||'-')}</span>
+      <span class="badge" id="plan-cur">Plan: ${esc(STATE.planTheme||'未设置')}</span></div>
+      <p class="hint">原理：在 cli.js 注入 plan 主题对象，Plan 模式激活时自动应用。</p>`;
+    $('#plan-save').addEventListener('click', async ()=>{
+      try{ const v=$('#plan-select').value; await api('/api/plan',{name:v||null}); STATE.planTheme=v; $('#plan-cur').textContent='Plan: '+(v||'未设置'); toast('Plan 主题已'+(v?'设置':'清除')); }
+      catch(e){ toast(e.message,true); }
+    });
+  } else if(currentPanel==='logo'){
+    p.innerHTML = `<h2>Logo 颜色</h2><div class="hint">登录页（mcode login）的 Logo 底色。</div>
+      <div class="color-grid">${colorItem('logo', t.logo||t.colors.brand, {logo:'登录页 Logo 底色'}, 'ui')}</div>`;
+    const sw=$('#ui-logo'), hex=$('[data-hex="logo"]');
+    sw.addEventListener('input',()=>{ hex.value=sw.value; applyCSSVars({colors:{brand:sw.value,wordmarkHighlight:sw.value,wordmarkShadow:sw.value,signal:sw.value,orbit:sw.value,accent:sw.value,userMessageBg:'#1E3A5F',text:'#EDEDED',muted:'#ADADAD',dim:'#7A7A7A',border:'#2A3A4E',line:'#3D5A7A',success:'#28C567',warning:'#FFC340',error:'#FF5E6C'},syntax:t.syntax}); });
+    hex.addEventListener('input',()=>{ if(/^#[0-9a-fA-F]{6}$/.test(hex.value)){ sw.value=hex.value; sw.dispatchEvent(new Event('input'));} });
+  } else if(currentPanel==='font'){
+    p.innerHTML = `<h2>字体</h2>
+      <div class="hint">mcode 本身不控制字体（由终端决定），这里可调整<b>预览字体</b>并查看终端设置指引。</div>
+      <div class="toolbar">
+        <select id="font-select">
+          ${STATE.fonts.map(f=>`<option value="${esc(f.stack)}" data-name="${esc(f.name)}">${esc(f.name)}</option>`).join('')}
+        </select>
+      </div>
+      <h3 style="margin:14px 0 8px;font-size:13px">终端字体设置指引</h3>
+      <div style="background:#1a212e;border:1px solid #283245;border-radius:8px;padding:14px;font-size:12px;line-height:1.8;color:#b9c4d4">
+        <b>GNOME Terminal:</b> 首选项 → 配置文件 → 自定义字体<br>
+        <b>Konsole:</b> 设置 → 编辑当前方案 → 外观 → 字体<br>
+        <b>Windows Terminal:</b> 设置 → 配置文件 → 外观 → 字体<br>
+        <b>VS Code 集成终端:</b> 设置 → terminal.integrated.fontFamily → 例如 <code style="color:var(--brand)">'JetBrains Mono', Consolas, monospace</code><br><br>
+        <span style="color:var(--muted)">推荐等宽字体：JetBrains Mono / Fira Code / Cascadia Code（含连字支持）</span>
+      </div>`;
+    const sel=$('#font-select');
+    sel.value = localStorage.getItem('mcode-theme-font') || '';
+    sel.addEventListener('change', ()=>{
+      const opt=sel.options[sel.selectedIndex];
+      localStorage.setItem('mcode-theme-font', opt.value);
+      localStorage.setItem('mcode-theme-font-name', opt.dataset.name);
+      renderPreview();
+    });
+  }
+}
+
+function onColorChange(section, key, value){
+  dirty[section+'.'+key]=value;
+  const t=STATE.activeTheme||{colors:{},ansi:{},syntax:{}};
+  t[section][key]=value;
+  applyCSSVars(t);
+  renderPreview();
+}
+
+function renderNav(){
+  $('#nav').innerHTML = `<div class="group-label">自定义模块</div>` +
+    MODULES.map(m=>`<button class="${m.id===currentPanel?'active':''}" data-panel="${m.id}">
+      ${m.name}<span class="desc">${m.desc}</span></button>`).join('');
+  document.querySelectorAll('#nav button').forEach(b=>{
+    b.addEventListener('click',()=>{ currentPanel=b.dataset.panel; renderNav(); renderPanel(); });
+  });
+}
+
+function toast(msg, isErr){
+  const t=$('#toast'); t.textContent=msg; t.className='show'+(isErr?' err':''); setTimeout(()=>t.className='',2200);
+}
+
+async function init(){
+  try{
+    STATE = await api('/api/state');
+    $('#badge-version').textContent = 'mcode: ' + (STATE.version||'?');
+    $('#badge-plan').textContent = 'Plan: ' + (STATE.planTheme||'-');
+    if(STATE.current) await loadTheme(STATE.current);
+    else { STATE.activeTheme = {name:'(未应用)', appearance:'dark', colors:{...STATE.defaults.ui.dark}, ansi:{...STATE.defaults.ansi.dark}, syntax:{...STATE.defaults.syntax.dark}}; applyCSSVars(STATE.activeTheme); renderPreview(); }
+    renderNav(); renderPanel();
+  }catch(e){ console.error('[mcode-theme] init failed:', e); toast('初始化失败: '+e.message, true); }
+
+  $('#btn-apply').addEventListener('click', async ()=>{
+    try{
+      const theme = currentThemeObj();
+      // logo 面板的 logo 字段
+      theme.logo = theme.logo || theme.colors.brand;
+      await api('/api/apply',{theme});
+      const st = await api('/api/state');
+      STATE.current = st.current; $('#badge-theme').textContent='主题: '+st.current;
+      await loadTheme(st.current);
+      toast('已应用到 mcode · 重启 mcode 生效');
+    }catch(e){ toast(e.message,true); }
+  });
+  $('#btn-restore').addEventListener('click', async ()=>{
+    if(!confirm('恢复官方主题？将清除所有自定义（含 Plan 主题）。')) return;
+    try{ await api('/api/restore',{}); location.reload(); }
+    catch(e){ toast(e.message,true); }
+  });
+  $('#btn-save').addEventListener('click', async ()=>{
+    const name = prompt('保存为新主题名称（英文/数字/连字符）:', 'my-theme');
+    if(!name || !/^[a-z0-9][a-z0-9-]*$/.test(name)){ toast('无效名称（需小写字母/数字/连字符）', true); return; }
+    try{
+      const theme = currentThemeObj(); theme.name = name;
+      await api('/api/save',{name, theme});
+      STATE.themes.push(name); STATE.themes.sort();
+      toast('已保存主题: '+name);
+      renderNav();
+    }catch(e){ toast(e.message,true); }
+  });
+  document.addEventListener('keydown', e=>{
+    if((e.ctrlKey||e.metaKey) && e.key==='s'){ e.preventDefault(); $('#btn-apply').click(); }
+  });
+}
+init();
+</script>
+</body>
+</html>

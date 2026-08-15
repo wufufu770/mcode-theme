@@ -1,0 +1,536 @@
+#!/usr/bin/env python3
+"""mcode_theme_lib - mcode-theme 核心逻辑（供 CLI 与 Web GUI 复用）"""
+#!/usr/bin/env python3
+"""
+mcode-theme - MiniMax Code CLI 主题安装工具（完整版）
+
+用法:
+  mcode-theme install <theme.json>      安装主题到 mcode（打补丁）
+  mcode-theme apply <name>              应用已安装的主题
+  mcode-theme list                      列出已安装主题
+  mcode-theme restore                   恢复官方默认主题
+  mcode-theme current                   显示当前主题
+  mcode-theme create <name>             生成主题模板（基于官方 dark 主题）
+
+原理:
+  mcode 的 cli.js 是单文件 bundle，包含 6 个主题定义点：
+  1. Ket  = UI 主题 dark   (hex)
+  2. Yet  = UI 主题 light  (hex)
+  3. AHo.dark  = ANSI 8 色回退主题 dark  (colorLevel=1 时用)
+  4. AHo.light = ANSI 8 色回退主题 light
+  5. Sri.dark  = 代码语法高亮主题 dark  (Catppuccin 风格)
+  6. Sri.light = 代码语法高亮主题 light
+  本工具一次性替换全部 6 处。
+
+主题 JSON 格式:
+  {
+    "name": "my-theme",
+    "appearance": "dark",
+    "colors": { ...15 个 UI 键... },
+    "ansi": { ...可选，15 个 ANSI 命名色键... },
+    "syntax": { ...可选，14 个语法高亮键... }
+  }
+"""
+
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+
+MCODE_LIB = os.path.expanduser("~/.minimax-code/lib/node_modules/@minimax-ai/code")
+CLI_PATH = os.path.join(MCODE_LIB, "cli.js")
+BACKUP_PATH = os.path.join(MCODE_LIB, "cli.js.minimax-original")
+THEME_DIR = os.path.expanduser("~/.minimax/themes")
+CURRENT_FILE = os.path.join(THEME_DIR, ".current-theme.json")
+
+UI_KEYS = [
+    "brand", "wordmarkHighlight", "wordmarkShadow", "signal", "orbit",
+    "accent", "userMessageBg", "text", "muted", "dim", "border", "line",
+    "success", "warning", "error",
+]
+
+SYNTAX_KEYS = [
+    "blue", "flamingo", "green", "mauve", "overlay2", "peach", "pink",
+    "red", "sapphire", "subtext0", "teal", "text", "yellow",
+]
+
+DEFAULT_UI = {
+    "dark": {
+        "brand": "#68C0FF", "wordmarkHighlight": "#93D2FF", "wordmarkShadow": "#3DAEFF",
+        "signal": "#68C0FF", "orbit": "#1CCDD2", "accent": "#68C0FF",
+        "userMessageBg": "#262626", "text": "#EDEDED", "muted": "#ADADAD",
+        "dim": "#666666", "border": "#303030", "line": "#666666",
+        "success": "#28C567", "warning": "#FFC340", "error": "#FF5E6C",
+    },
+    "light": {
+        "brand": "#0094FC", "wordmarkHighlight": "#3DAEFF", "wordmarkShadow": "#0077D9",
+        "signal": "#0094FC", "orbit": "#00767D", "accent": "#0094FC",
+        "userMessageBg": "#F5F5F5", "text": "#303030", "muted": "#666666",
+        "dim": "#949494", "border": "#EDEDED", "line": "#949494",
+        "success": "#008635", "warning": "#916300", "error": "#E31937",
+    },
+}
+
+DEFAULT_ANSI = {
+    "dark": {
+        "brand": "cyanBright", "wordmarkHighlight": "whiteBright", "wordmarkShadow": "cyan",
+        "signal": "cyanBright", "orbit": "cyan", "accent": "cyanBright",
+        "text": "whiteBright", "muted": "white", "dim": "gray",
+        "border": "gray", "line": "gray", "success": "greenBright",
+        "warning": "yellowBright", "error": "redBright",
+    },
+    "light": {
+        "brand": "blueBright", "wordmarkHighlight": "blueBright", "wordmarkShadow": "blue",
+        "signal": "blueBright", "orbit": "cyan", "accent": "blueBright",
+        "text": "black", "muted": "black", "dim": "gray",
+        "border": "gray", "line": "gray", "success": "green",
+        "warning": "yellow", "error": "red",
+    },
+}
+
+DEFAULT_SYNTAX = {
+    "dark": {
+        "blue": "#89B4FA", "flamingo": "#F2CDCD", "green": "#A6E3A1",
+        "mauve": "#CBA6F7", "overlay2": "#9399B2", "peach": "#FAB387",
+        "pink": "#F5C2E7", "red": "#F38BA8", "sapphire": "#74C7EC",
+        "subtext0": "#A6ADC8", "teal": "#94E2D5", "text": "#CDD6F4",
+        "yellow": "#F9E2AF",
+    },
+    "light": {
+        "blue": "#1E66F5", "flamingo": "#DD7878", "green": "#40A02B",
+        "mauve": "#8839EF", "overlay2": "#7C7F93", "peach": "#FE640B",
+        "pink": "#EA76CB", "red": "#D20F39", "sapphire": "#209FB5",
+        "subtext0": "#6C6F85", "teal": "#179299", "text": "#4C4F69",
+        "yellow": "#DF8E1D",
+    },
+}
+
+HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+ANSI_RE = re.compile(r"^(black|red|green|yellow|blue|magenta|cyan|white|gray|blackBright|redBright|greenBright|yellowBright|blueBright|magentaBright|cyanBright|whiteBright)$")
+
+
+class ThemeError(Exception):
+    pass
+
+
+def err(msg):
+    raise ThemeError(msg)
+
+
+def load_theme(path):
+    if not os.path.isfile(path):
+        err(f"theme file not found: {path}")
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict):
+        err("theme must be a JSON object")
+    name = data.get("name") or os.path.splitext(os.path.basename(path))[0]
+    appearance = data.get("appearance", "dark")
+    if appearance not in ("dark", "light"):
+        err("theme 'appearance' must be 'dark' or 'light'")
+
+    # UI colors
+    colors = data.get("colors") or {}
+    merged_ui = dict(DEFAULT_UI[appearance])
+    unknown = []
+    for k, v in colors.items():
+        if k not in UI_KEYS:
+            unknown.append(k)
+            continue
+        if not isinstance(v, str) or not HEX_RE.match(v):
+            err(f"color '{k}' must be a hex color like #RRGGBB, got: {v!r}")
+        merged_ui[k] = v
+    if unknown:
+        print(f"warning: ignoring unknown theme keys: {', '.join(unknown)}")
+
+    # ANSI fallback colors (optional, no userMessageBg in official)
+    ansi = data.get("ansi")
+    merged_ansi = dict(DEFAULT_ANSI[appearance])
+    if ansi:
+        for k, v in ansi.items():
+            if k in merged_ansi and isinstance(v, str) and ANSI_RE.match(v):
+                merged_ansi[k] = v
+            else:
+                err(f"ansi color '{k}' must be an ANSI name like 'redBright'")
+
+    # Syntax highlight colors (optional)
+    syntax = data.get("syntax")
+    merged_syntax = dict(DEFAULT_SYNTAX[appearance])
+    if syntax:
+        for k, v in syntax.items():
+            if k in SYNTAX_KEYS and isinstance(v, str) and HEX_RE.match(v):
+                merged_syntax[k] = v
+            else:
+                err(f"syntax color '{k}' must be a hex color like #RRGGBB")
+
+    # Login page logo color (optional, default = brand)
+    logo = data.get("logo")
+    if logo is not None and (not isinstance(logo, str) or not HEX_RE.match(logo)):
+        err(f"logo must be a hex color like #RRGGBB")
+    merged_logo = logo or merged_ui["brand"]
+
+    return {"name": name, "appearance": appearance,
+            "colors": merged_ui, "ansi": merged_ansi,
+            "syntax": merged_syntax, "logo": merged_logo}
+
+
+def fmt(obj, keys):
+    return "{" + ",".join(f'{k}:"{obj[k]}"' for k in keys if k in obj) + "}"
+
+
+def fmt_ansi(obj, keys):
+    return ",".join(f'{k}:"{obj[k]}"' for k in keys if k in obj)
+
+
+def ensure_backup():
+    if os.path.exists(BACKUP_PATH):
+        return
+    if not os.path.isfile(CLI_PATH):
+        err(f"cli.js not found at {CLI_PATH}. Is mcode installed?")
+    shutil.copy2(CLI_PATH, BACKUP_PATH)
+    print(f"backup created: {BACKUP_PATH}")
+
+
+def cli_fingerprint():
+    """返回 (mcode 版本, cli.js md5) 用于检测 mcode 升级覆盖"""
+    import hashlib
+    md5 = None
+    try:
+        with open(CLI_PATH, "rb") as f:
+            md5 = hashlib.md5(f.read()).hexdigest()
+    except OSError:
+        pass
+    version = None
+    # 从 package.json 读取 mcode 版本（cli.js 头部的 version 是依赖库的）
+    try:
+        pkg_path = os.path.join(MCODE_LIB, "package.json")
+        with open(pkg_path, "r", encoding="utf-8") as f:
+            version = json.load(f).get("version")
+    except OSError:
+        pass
+    return {"version": version, "md5": md5}
+
+
+def check_stale():
+    """检测 mcode 是否被升级覆盖（版本变了 或 md5 变了但非本工具修改）"""
+    fp = cli_fingerprint()
+    cur = current()
+    if not cur:
+        return
+    old_md5 = cur.get("_cliMd5")
+    old_ver = cur.get("_cliVersion")
+    ver_changed = old_ver and fp["version"] and old_ver != fp["version"]
+    md5_changed = old_md5 and fp["md5"] and old_md5 != fp["md5"]
+    if ver_changed or (md5_changed and not ver_changed and os.path.isfile(BACKUP_PATH)
+                       and cli_fingerprint_matches_backup()):
+        print(f"warning: mcode 已更新（{old_ver or '?'} -> {fp['version'] or '?'}），"
+              f"cli.js 已被覆盖，需要重新应用主题: mcode-theme apply {cur['name']}")
+
+
+def cli_fingerprint_matches_backup():
+    """当前 cli.js 是否与官方备份一致（说明被 mcode 升级/覆盖）"""
+    import hashlib
+    if not os.path.isfile(BACKUP_PATH):
+        return False
+    try:
+        with open(CLI_PATH, "rb") as f:
+            cur = hashlib.md5(f.read()).hexdigest()
+        with open(BACKUP_PATH, "rb") as f:
+            bak = hashlib.md5(f.read()).hexdigest()
+        return cur == bak
+    except OSError:
+        return False
+
+
+def verify_mcode():
+    if not os.path.isfile(CLI_PATH):
+        err(f"cli.js not found at {CLI_PATH}. Is mcode installed?")
+    with open(CLI_PATH, "r", encoding="utf-8") as f:
+        content = f.read()
+    checks = [
+        (r'id:"minimax",appearance:"dark",colors:Object\.freeze\(\{[^}]*\}\)', "UI dark"),
+        (r'id:"minimax",appearance:"light",colors:Object\.freeze\(\{[^}]*\}\)', "UI light"),
+        (r'Object\.freeze\(\{brand:"[a-zA-Z]+",[^}]*\}\)', "ANSI dark"),
+        (r'Object\.freeze\(\{brand:"[a-zA-Z]+",[^}]*\}\)', "ANSI light"),
+        (r'\{blue:"#[0-9A-Fa-f]{6}",[^}]*\}', "syntax dark"),
+        (r'\{blue:"#[0-9A-Fa-f]{6}",[^}]*\}', "syntax light"),
+    ]
+    for pattern, label in checks:
+        if not re.search(pattern, content):
+            err(f"cannot find {label} theme block in cli.js (version mismatch?)")
+    return content
+
+
+def patch_cli(theme):
+    ensure_backup()
+    content = verify_mcode()
+    appearance = theme["appearance"]
+
+    # 1. UI hex theme
+    ui_str = fmt(theme["colors"], UI_KEYS)
+    pattern = r'id:"minimax",appearance:"%s",colors:Object\.freeze\(\{[^}]*\}\)' % appearance
+    replacement = 'id:"minimax",appearance:"%s",colors:Object.freeze(%s)' % (appearance, ui_str)
+    new_content, count = re.subn(pattern, replacement, content, count=1)
+    if count != 1:
+        err(f"patch failed for UI {appearance} theme")
+    content = new_content
+
+    # 2. ANSI fallback theme (colorLevel=1)
+    ansi_inner = fmt_ansi(theme["ansi"], UI_KEYS)
+    ansi_patterns = {
+        "dark": r'dark:Object\.freeze\(\{brand:"[a-zA-Z]+",[^}]*\}\)',
+        "light": r'light:Object\.freeze\(\{brand:"[a-zA-Z]+",[^}]*\}\)',
+    }
+    ansi_replacement = 'dark:Object.freeze({%s})' % ansi_inner if appearance == "dark" else 'light:Object.freeze({%s})' % ansi_inner
+    new_content, count = re.subn(ansi_patterns[appearance], ansi_replacement, content, count=1)
+    if count != 1:
+        err(f"patch failed for ANSI {appearance} theme")
+    content = new_content
+
+    # 3. Syntax highlight theme
+    syntax_str = fmt(theme["syntax"], SYNTAX_KEYS)
+    syntax_patterns = {
+        "dark": r'dark:\{blue:"#[0-9A-Fa-f]{6}",[^}]*\}',
+        "light": r'light:\{blue:"#[0-9A-Fa-f]{6}",[^}]*\}',
+    }
+    syntax_replacement = 'dark:%s' % syntax_str if appearance == "dark" else 'light:%s' % syntax_str
+    new_content, count = re.subn(syntax_patterns[appearance], syntax_replacement, content, count=1)
+    if count != 1:
+        err(f"patch failed for syntax {appearance} theme")
+    content = new_content
+
+    # 4. Login page logo color (hardcoded #7DC6FF originally)
+    logo = theme["logo"]
+    new_content, count = re.subn(r'fill="#[0-9A-Fa-f]{6}"', 'fill="%s"' % logo, content, count=1)
+    if count != 1:
+        err(f"patch failed for login logo color")
+    content = new_content
+
+    # 5. Plan mode theme hook (Shift+Tab 切换 plan 模式时换主题)
+    cur = current()
+    plan_name = (cur or {}).get("planTheme") if cur else None
+    plan_obj = None
+    if plan_name:
+        plan_path = os.path.join(THEME_DIR, f"{plan_name}.json")
+        if os.path.isfile(plan_path):
+            plan_obj = load_theme(plan_path)
+
+    # 5a. 注入 plan 主题对象（顶层 var 声明，所有模块可见）
+    anchor = 'var Ilo=Object.create;'
+    if anchor not in content:
+        err("cannot find top-level anchor for plan hook injection")
+    if plan_obj:
+        plan_colors = fmt(plan_obj["colors"], UI_KEYS)
+        plan_obj_lit = ('Object.freeze({id:"minimax-plan",'
+                        'appearance:"%s",colors:Object.freeze(%s)})' % (plan_obj["appearance"], plan_colors))
+        if '__mcodePlanThemeActive' not in content:
+            inject = 'var __mcodePlanThemeActive=!1,__mcodePlanTheme=%s;' % plan_obj_lit
+            content = content.replace(anchor, anchor + inject, 1)
+        else:
+            new_content, count = re.subn(
+                r'__mcodePlanTheme=Object\.freeze\(\{id:"minimax-plan"[^;]*\);|__mcodePlanTheme=null;',
+                '__mcodePlanTheme=%s;' % plan_obj_lit, content, count=1)
+            if count != 1:
+                err("failed to update plan theme object")
+            content = new_content
+    else:
+        if '__mcodePlanThemeActive' not in content:
+            inject = 'var __mcodePlanThemeActive=!1,__mcodePlanTheme=null;'
+            content = content.replace(anchor, anchor + inject, 1)
+        else:
+            new_content, count = re.subn(
+                r'__mcodePlanTheme=Object\.freeze\(\{id:"minimax-plan"[^;]*\);|__mcodePlanTheme=null;',
+                '__mcodePlanTheme=null;', content, count=1)
+            if count != 1:
+                err("failed to reset plan theme object")
+            content = new_content
+
+    # 5b. 修改 jri() 开头：plan 激活时用 plan 主题
+    jri_src = 'function jri(t,e){if(!(M9.name!==t.id||M9.appearance!==t.appearance||M9.colorLevel!==e))return!1;'
+    jri_new = ('function jri(t,e){if(__mcodePlanThemeActive&&__mcodePlanTheme){'
+               't={id:__mcodePlanTheme.id,appearance:__mcodePlanTheme.appearance,colors:__mcodePlanTheme.colors};}'
+               'if(!(M9.name!==t.id||M9.appearance!==t.appearance||M9.colorLevel!==e))return!1;')
+    if '__mcodePlanThemeActive&&__mcodePlanTheme' not in content:
+        if jri_src not in content:
+            err("cannot find jri() for plan hook")
+        content = content.replace(jri_src, jri_new, 1)
+
+    # 5c. 修改 gni() 开头：检测 plan 模式切换，更新 __mcodePlanThemeActive 并刷新主题
+    gni_src = 'function gni(t,e=!1){if(t.planMode!=="plan"&&!t.planModeTransition)return"";'
+    gni_new = ('function gni(t,e=!1){if(typeof __mcodePlanThemeActive==="boolean"){'
+               'var np=t.planMode==="plan"||t.planModeTransition==="next-message"||t.planModeTransition==="submitting";'
+               'if(np!==__mcodePlanThemeActive){__mcodePlanThemeActive=np;'
+               'try{jri(M9.colorLevel===1?{id:"minimax",appearance:M9.appearance,colors:$A}:'
+               '(M9.appearance==="light"?Yet:Ket),M9.colorLevel)}catch(_){}}}'
+               'if(t.planMode!=="plan"&&!t.planModeTransition)return"";')
+    if 'typeof __mcodePlanThemeActive==="boolean"' not in content:
+        if gni_src not in content:
+            err("cannot find gni() for plan hook")
+        content = content.replace(gni_src, gni_new, 1)
+
+    with open(CLI_PATH, "w", encoding="utf-8") as f:
+        f.write(content)
+    # 写 current 时保留已有 planTheme 并记录 mcode 指纹
+    prev = current() or {}
+    theme = dict(theme)
+    if prev.get("planTheme"):
+        theme["planTheme"] = prev["planTheme"]
+    fp = cli_fingerprint()
+    if fp["md5"]:
+        theme["_cliMd5"] = fp["md5"]
+    if fp["version"]:
+        theme["_cliVersion"] = fp["version"]
+    with open(CURRENT_FILE, "w", encoding="utf-8") as f:
+        json.dump(theme, f, indent=2)
+    # post-patch 自动 JS 语法校验（防止破坏 cli.js）
+    if os.path.isfile(CLI_PATH) and os.environ.get("MCODE_THEME_NO_CHECK") != "1":
+        candidates = [
+            os.path.join(MCODE_LIB, "..", "..", "runtime", "node", "bin", "node"),
+            shutil.which("node"),
+        ]
+        node_bin = next((c for c in candidates if c and os.path.isfile(c)), None)
+        if node_bin:
+            r = subprocess.run([node_bin, "--check", CLI_PATH],
+                               capture_output=True, text=True,
+                               timeout=int(os.environ.get("MCODE_THEME_CHECK_TIMEOUT", "15")))
+            if r.returncode != 0:
+                # patch 破坏文件，自动回滚
+                if os.path.isfile(BACKUP_PATH):
+                    shutil.copy2(BACKUP_PATH, CLI_PATH)
+                    raise ThemeError("patch 破坏了 cli.js 语法，已自动回滚到官方版本")
+    print(f"installed theme '{theme['name']}' ({appearance}) - patched UI + ANSI + syntax")
+
+
+def install(path):
+    theme = load_theme(path)
+    os.makedirs(THEME_DIR, exist_ok=True)
+    dest = os.path.join(THEME_DIR, f"{theme['name']}.json")
+    with open(dest, "w", encoding="utf-8") as f:
+        json.dump(theme, f, indent=2)
+    patch_cli(theme)
+    print(f"saved theme to {dest}")
+    print("\n重启 mcode 后生效（或 /quit 后重新运行 mcode）")
+
+
+def apply(name):
+    path = os.path.join(THEME_DIR, f"{name}.json")
+    if not os.path.isfile(path):
+        err(f"theme '{name}' not found in {THEME_DIR}")
+    theme = load_theme(path)
+    patch_cli(theme)
+    print(f"applied theme '{name}'")
+
+
+def restore():
+    if not os.path.isfile(BACKUP_PATH):
+        err("no backup found. Run 'mcode-theme install' first.")
+    shutil.copy2(BACKUP_PATH, CLI_PATH)
+    if os.path.exists(CURRENT_FILE):
+        os.remove(CURRENT_FILE)
+    print("restored official default theme")
+
+
+def list_themes():
+    print("Installed themes:")
+    if os.path.isdir(THEME_DIR):
+        for fn in sorted(os.listdir(THEME_DIR)):
+            if fn.endswith(".json") and not fn.startswith("."):
+                print(f"  - {fn[:-5]}")
+    print("Built-in: dark, light")
+    cur = current()
+    if cur:
+        line = f"Current: {cur['name']} ({cur['appearance']})"
+        if cur.get("planTheme"):
+            line += f" | Plan mode: {cur['planTheme']}"
+        print(line)
+
+
+def current():
+    if os.path.isfile(CURRENT_FILE):
+        with open(CURRENT_FILE) as f:
+            return json.load(f)
+    return None
+
+
+def set_plan(name):
+    """设置 plan 模式下使用的主题"""
+    theme = current()
+    if not theme:
+        err("no active theme. Run 'mcode-theme apply <name>' first.")
+    # 校验主题存在
+    path = os.path.join(THEME_DIR, f"{name}.json")
+    if not os.path.isfile(path):
+        err(f"theme '{name}' not found in {THEME_DIR}")
+    plan_theme = load_theme(path)
+    theme["planTheme"] = plan_theme["name"]
+    with open(CURRENT_FILE, "w", encoding="utf-8") as f:
+        json.dump(theme, f, indent=2)
+    # 重新 patch（注入 plan 主题钩子）
+    patch_cli(load_theme(os.path.join(THEME_DIR, f"{theme['name']}.json")))
+    print(f"plan mode theme set to '{name}'. Shift+Tab 切换 plan 模式时自动应用。")
+
+
+def unset_plan():
+    theme = current()
+    if not theme or "planTheme" not in theme:
+        err("no plan theme set")
+    del theme["planTheme"]
+    with open(CURRENT_FILE, "w", encoding="utf-8") as f:
+        json.dump(theme, f, indent=2)
+    patch_cli(load_theme(os.path.join(THEME_DIR, f"{theme['name']}.json")))
+    print("plan mode theme cleared.")
+
+
+def random_theme():
+    """随机应用一个已安装主题"""
+    import random
+    if not os.path.isdir(THEME_DIR):
+        err("no themes installed.")
+    names = sorted(fn[:-5] for fn in os.listdir(THEME_DIR)
+                   if fn.endswith(".json") and not fn.startswith("."))
+    if not names:
+        err("no themes installed.")
+    cur = current()
+    pick = random.choice(names)
+    # 避免选到当前主题（如果有多个）
+    if len(names) > 1 and cur and cur.get("name") in names:
+        others = [n for n in names if n != cur["name"]]
+        pick = random.choice(others)
+    apply(pick)
+    print(f"random theme: {pick}")
+
+
+def create_template(name):
+    os.makedirs(THEME_DIR, exist_ok=True)
+    path = os.path.join(THEME_DIR, f"{name}.json")
+    template = {
+        "name": name,
+        "appearance": "dark",
+        "colors": DEFAULT_UI["dark"],
+        "ansi": DEFAULT_ANSI["dark"],
+        "syntax": DEFAULT_SYNTAX["dark"],
+    }
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(template, f, indent=2)
+    print(f"template created: {path}")
+    print("edit colors then run: mcode-theme install <path>")
+
+
+
+
+def list_theme_names():
+    """列出已安装主题名（~/.minimax/themes/*.json）"""
+    if not os.path.isdir(THEME_DIR):
+        return []
+    return sorted(fn[:-5] for fn in os.listdir(THEME_DIR)
+                  if fn.endswith(".json") and not fn.startswith("."))
+
+
+def theme_path(name):
+    return os.path.join(THEME_DIR, f"{name}.json")
+
+
+if __name__ == "__main__":
+    print("This is a library module, import it instead.")

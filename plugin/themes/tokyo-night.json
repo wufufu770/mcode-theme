@@ -1,0 +1,53 @@
+{
+  "name": "tokyo-night",
+  "appearance": "dark",
+  "colors": {
+    "brand": "#7AA2F7",
+    "wordmarkHighlight": "#7AA2F7",
+    "wordmarkShadow": "#1A1B26",
+    "signal": "#7AA2F7",
+    "orbit": "#7DCFFF",
+    "accent": "#7AA2F7",
+    "userMessageBg": "#1A1B26",
+    "text": "#C0CAF5",
+    "muted": "#C0CAF5",
+    "dim": "#7AA2F7",
+    "border": "#1A1B26",
+    "line": "#7AA2F7",
+    "success": "#9ECE6A",
+    "warning": "#E0AF68",
+    "error": "#F7768E"
+  },
+  "ansi": {
+    "brand": "cyanBright",
+    "wordmarkHighlight": "whiteBright",
+    "wordmarkShadow": "cyan",
+    "signal": "cyanBright",
+    "orbit": "cyan",
+    "accent": "cyanBright",
+    "text": "whiteBright",
+    "muted": "white",
+    "dim": "gray",
+    "border": "gray",
+    "line": "gray",
+    "success": "greenBright",
+    "warning": "yellowBright",
+    "error": "redBright"
+  },
+  "syntax": {
+    "blue": "#7AA2F7",
+    "flamingo": "#FF9E64",
+    "green": "#9ECE6A",
+    "mauve": "#BB9AF7",
+    "overlay2": "#7AA2F7",
+    "peach": "#FF9E64",
+    "pink": "#BB9AF7",
+    "red": "#F7768E",
+    "sapphire": "#7DCFFF",
+    "subtext0": "#C0CAF5",
+    "teal": "#7DCFFF",
+    "text": "#C0CAF5",
+    "yellow": "#E0AF68"
+  },
+  "logo": "#7AA2F7"
+}
