@@ -417,6 +417,26 @@ def patch_cli(theme):
             else:
                 err("cannot find plan var block for refresh injection")
 
+    # 5d. patch Bdn（chrome/shell 构造，渲染前调用）：plan 模式变化时在渲染
+    #     前更新主题色（KA），确保本次渲染整体使用 plan 主题，而非只更新
+    #     状态栏区域。Bdn 每次 session 快照变化都会执行（zt -> mnt.update）。
+    if 'typeof __mcodePlanThemeActive==="boolean"' not in content or \
+            'Bdn(t){let e=t.snapshot.session' not in content:
+        pass
+    m_bdn = re.search(
+        r'function Bdn\(t\)\{let e=t\.snapshot\.session,',
+        content)
+    if m_bdn:
+        bdn_old = m_bdn.group(0)
+        bdn_new = ('function Bdn(t){'
+                   'if(typeof __mcodePlanThemeActive==="boolean"){'
+                   'var bnp=t.planMode?.displayMode==="plan";'
+                   'if(bnp!==__mcodePlanThemeActive){'
+                   '__mcodePlanThemeActive=bnp;'
+                   'try{__mcodeThemeRefresh()}catch(_){}}}'
+                   'let e=t.snapshot.session,')
+        content = content.replace(bdn_old, bdn_new, 1)
+
     with open(CLI_PATH, "w", encoding="utf-8") as f:
         f.write(content)
     # 写 current 时保留已有 planTheme 并记录 mcode 指纹
