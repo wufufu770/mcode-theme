@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mcode_theme_lib - mcode-theme 核心逻辑（供 CLI 与 Web GUI 复用）"""
+"""mcode_theme_lib - mcode-theme 核心逻辑"""
 #!/usr/bin/env python3
 """
 mcode-theme - MiniMax Code CLI 主题安装工具（完整版）
@@ -111,12 +111,9 @@ HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 ANSI_RE = re.compile(r"^(black|red|green|yellow|blue|magenta|cyan|white|gray|blackBright|redBright|greenBright|yellowBright|blueBright|magentaBright|cyanBright|whiteBright)$")
 
 
-class ThemeError(Exception):
-    pass
-
-
 def err(msg):
-    raise ThemeError(msg)
+    print(f"error: {msg}", file=sys.stderr)
+    sys.exit(1)
 
 
 def load_theme(path):
@@ -244,6 +241,14 @@ def cli_fingerprint_matches_backup():
         return False
 
 
+def read_cli():
+    """读取当前 cli.js 原文（无任何校验）。"""
+    if not os.path.isfile(CLI_PATH):
+        err(f"cli.js not found at {CLI_PATH}. Is mcode installed?")
+    with open(CLI_PATH, "r", encoding="utf-8") as f:
+        return f.read()
+
+
 def verify_mcode():
     if not os.path.isfile(CLI_PATH):
         err(f"cli.js not found at {CLI_PATH}. Is mcode installed?")
@@ -265,6 +270,7 @@ def verify_mcode():
 
 def patch_cli(theme):
     ensure_backup()
+    original_content = read_cli()
     content = verify_mcode()
     appearance = theme["appearance"]
 
@@ -318,57 +324,100 @@ def patch_cli(theme):
             plan_obj = load_theme(plan_path)
 
     # 5a. 注入 plan 主题对象（顶层 var 声明，所有模块可见）
-    anchor = 'var Ilo=Object.create;'
-    if anchor not in content:
+    # 兼容不同打包版本: var Ilo=Object.create / var Npo=Object.create / ...
+    m = re.search(r'var [A-Za-z_$][\w$]*=Object\.create;', content)
+    if not m:
         err("cannot find top-level anchor for plan hook injection")
+    anchor = m.group(0)
+    # 当前主题对象（patch 的 theme）
+    cur_colors = fmt(theme["colors"], UI_KEYS)
+    cur_app = theme.get("appearance", "dark")
+    cur_theme_lit = ('Object.freeze({id:"minimax-current",appearance:"%s",colors:Object.freeze(%s)})'
+                     % (cur_app, cur_colors))
     if plan_obj:
         plan_colors = fmt(plan_obj["colors"], UI_KEYS)
         plan_obj_lit = ('Object.freeze({id:"minimax-plan",'
                         'appearance:"%s",colors:Object.freeze(%s)})' % (plan_obj["appearance"], plan_colors))
         if '__mcodePlanThemeActive' not in content:
-            inject = 'var __mcodePlanThemeActive=!1,__mcodePlanTheme=%s;' % plan_obj_lit
+            inject = ('var __mcodePlanThemeActive=!1,__mcodePlanTheme=%s,__mcodeCurrentTheme=%s;' % (plan_obj_lit, cur_theme_lit))
             content = content.replace(anchor, anchor + inject, 1)
         else:
+            # 已有 plan 钩子：整条语句替换（保持 __mcodeCurrentTheme 同步）。
+            # 不能只替换 __mcodePlanTheme 片段——贪婪匹配会吞掉后面的
+            # `,__mcodeCurrentTheme=Object.freeze({...})})`，生成非法 JS。
             new_content, count = re.subn(
-                r'__mcodePlanTheme=Object\.freeze\(\{id:"minimax-plan"[^;]*\);|__mcodePlanTheme=null;',
-                '__mcodePlanTheme=%s;' % plan_obj_lit, content, count=1)
+                r'var __mcodePlanThemeActive=!1,__mcodePlanTheme=[^;]*?,__mcodeCurrentTheme=[^;]*?;',
+                'var __mcodePlanThemeActive=!1,__mcodePlanTheme=%s,__mcodeCurrentTheme=%s;'
+                % (plan_obj_lit, cur_theme_lit),
+                content, count=1)
             if count != 1:
                 err("failed to update plan theme object")
             content = new_content
     else:
         if '__mcodePlanThemeActive' not in content:
-            inject = 'var __mcodePlanThemeActive=!1,__mcodePlanTheme=null;'
+            inject = ('var __mcodePlanThemeActive=!1,__mcodePlanTheme=null,__mcodeCurrentTheme=%s;' % cur_theme_lit)
             content = content.replace(anchor, anchor + inject, 1)
         else:
             new_content, count = re.subn(
-                r'__mcodePlanTheme=Object\.freeze\(\{id:"minimax-plan"[^;]*\);|__mcodePlanTheme=null;',
-                '__mcodePlanTheme=null;', content, count=1)
+                r'var __mcodePlanThemeActive=!1,__mcodePlanTheme=[^;]*?,__mcodeCurrentTheme=[^;]*?;',
+                'var __mcodePlanThemeActive=!1,__mcodePlanTheme=null,__mcodeCurrentTheme=%s;' % cur_theme_lit,
+                content, count=1)
             if count != 1:
                 err("failed to reset plan theme object")
             content = new_content
 
-    # 5b. 修改 jri() 开头：plan 激活时用 plan 主题
-    jri_src = 'function jri(t,e){if(!(M9.name!==t.id||M9.appearance!==t.appearance||M9.colorLevel!==e))return!1;'
-    jri_new = ('function jri(t,e){if(__mcodePlanThemeActive&&__mcodePlanTheme){'
-               't={id:__mcodePlanTheme.id,appearance:__mcodePlanTheme.appearance,colors:__mcodePlanTheme.colors};}'
-               'if(!(M9.name!==t.id||M9.appearance!==t.appearance||M9.colorLevel!==e))return!1;')
+    # 5b. 修改主题应用函数开头（jri/gai，版本无关）：plan 激活时用 plan 主题
+    m_theme_fn = re.search(
+        r'function ([A-Za-z_$][\w$]*)\(t,e\)\{if\(!\(([A-Za-z_$][\w$]*)\.name!==t\.id\|\|'
+        r'\2\.appearance!==t\.appearance\|\|\2\.colorLevel!==e\)\)return!1;',
+        content)
     if '__mcodePlanThemeActive&&__mcodePlanTheme' not in content:
-        if jri_src not in content:
-            err("cannot find jri() for plan hook")
-        content = content.replace(jri_src, jri_new, 1)
+        if not m_theme_fn:
+            err("cannot find theme apply function for plan hook")
+        fn = m_theme_fn.group(1)
+        var = m_theme_fn.group(2)
+        old = m_theme_fn.group(0)
+        new = ('function %s(t,e){if(__mcodePlanThemeActive&&__mcodePlanTheme){'
+               't={id:__mcodePlanTheme.id,appearance:__mcodePlanTheme.appearance,colors:__mcodePlanTheme.colors};}'
+               'if(!(%s.name!==t.id||%s.appearance!==t.appearance||%s.colorLevel!==e))return!1;'
+               % (fn, var, var, var))
+        content = content.replace(old, new, 1)
+    else:
+        fn = m_theme_fn.group(1) if m_theme_fn else 'gai'
 
-    # 5c. 修改 gni() 开头：检测 plan 模式切换，更新 __mcodePlanThemeActive 并刷新主题
-    gni_src = 'function gni(t,e=!1){if(t.planMode!=="plan"&&!t.planModeTransition)return"";'
-    gni_new = ('function gni(t,e=!1){if(typeof __mcodePlanThemeActive==="boolean"){'
+    # 5c. 修改 plan 状态渲染函数开头（gni/Jai，版本无关）：检测 plan 切换并刷新主题
+    m_plan_fn = re.search(
+        r'function ([A-Za-z_$][\w$]*)\(t,e=!1\)\{if\(t\.planMode!=="plan"&&!t\.planModeTransition\)return"";',
+        content)
+    if 'typeof __mcodePlanThemeActive==="boolean"' not in content:
+        if not m_plan_fn:
+            err("cannot find plan status render function for plan hook")
+        pfn = m_plan_fn.group(1)
+        old = m_plan_fn.group(0)
+        new = ('function %s(t,e=!1){if(typeof __mcodePlanThemeActive==="boolean"){'
                'var np=t.planMode==="plan"||t.planModeTransition==="next-message"||t.planModeTransition==="submitting";'
                'if(np!==__mcodePlanThemeActive){__mcodePlanThemeActive=np;'
-               'try{jri(M9.colorLevel===1?{id:"minimax",appearance:M9.appearance,colors:$A}:'
-               '(M9.appearance==="light"?Yet:Ket),M9.colorLevel)}catch(_){}}}'
-               'if(t.planMode!=="plan"&&!t.planModeTransition)return"";')
-    if 'typeof __mcodePlanThemeActive==="boolean"' not in content:
-        if gni_src not in content:
-            err("cannot find gni() for plan hook")
-        content = content.replace(gni_src, gni_new, 1)
+               'try{__mcodeThemeRefresh()}catch(_){}}}'
+               'if(t.planMode!=="plan"&&!t.planModeTransition)return"";'
+               % pfn)
+        content = content.replace(old, new, 1)
+
+        # 5c2. 顶层注入 __mcodeThemeRefresh 辅助函数（追加在 5a 注入语句之后）
+        if 'function __mcodeThemeRefresh' not in content:
+            refresh = ('function __mcodeThemeRefresh(){'
+                       'var th=(__mcodePlanThemeActive&&__mcodePlanTheme)?__mcodePlanTheme:__mcodeCurrentTheme;'
+                       'if(th){try{__mcodeThemeFn(th,__mcodeThemeLevel)}catch(_){}}}'
+                       'var __mcodeThemeFn=%s,__mcodeThemeLevel=3;'
+                       % fn)
+            # 注入到 5a 语句的末尾：匹配 `var __mcodePlanThemeActive=...__mcodeCurrentTheme=...;` 整条语句
+            inject_anchor = re.search(
+                r'var __mcodePlanThemeActive=!1,__mcodePlanTheme=[^;]*?,__mcodeCurrentTheme=[^;]*?;',
+                content)
+            if inject_anchor:
+                content = content.replace(inject_anchor.group(0),
+                                          inject_anchor.group(0) + refresh, 1)
+            else:
+                err("cannot find plan var block for refresh injection")
 
     with open(CLI_PATH, "w", encoding="utf-8") as f:
         f.write(content)
@@ -393,13 +442,19 @@ def patch_cli(theme):
         node_bin = next((c for c in candidates if c and os.path.isfile(c)), None)
         if node_bin:
             r = subprocess.run([node_bin, "--check", CLI_PATH],
-                               capture_output=True, text=True,
-                               timeout=int(os.environ.get("MCODE_THEME_CHECK_TIMEOUT", "15")))
+                               capture_output=True, text=True, timeout=30)
             if r.returncode != 0:
-                # patch 破坏文件，自动回滚
-                if os.path.isfile(BACKUP_PATH):
-                    shutil.copy2(BACKUP_PATH, CLI_PATH)
-                    raise ThemeError("patch 破坏了 cli.js 语法，已自动回滚到官方版本")
+                # patch 破坏文件，回滚到 patch 前的状态（保留已应用主题，
+                # 而非官方原版——否则二次 patch 失败会丢掉当前主题）
+                try:
+                    with open(CLI_PATH, "w", encoding="utf-8") as f:
+                        f.write(original_content)
+                    print("error: patch 破坏了 cli.js 语法，已回滚到 patch 前状态", file=sys.stderr)
+                except OSError:
+                    if os.path.isfile(BACKUP_PATH):
+                        shutil.copy2(BACKUP_PATH, CLI_PATH)
+                    print("error: patch 破坏了 cli.js 语法，已自动回滚到官方版本", file=sys.stderr)
+                sys.exit(1)
     print(f"installed theme '{theme['name']}' ({appearance}) - patched UI + ANSI + syntax")
 
 
@@ -521,7 +576,6 @@ def create_template(name):
 
 
 def list_theme_names():
-    """列出已安装主题名（~/.minimax/themes/*.json）"""
     if not os.path.isdir(THEME_DIR):
         return []
     return sorted(fn[:-5] for fn in os.listdir(THEME_DIR)
