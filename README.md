@@ -2,6 +2,21 @@
 
 让用户自定义 MiniMax Code CLI 的主题（当前官方版本主题硬编码，无配置入口）。
 
+## 截图
+
+| 命令用法 | 基础模式（ember 主题） |
+|---|---|
+| ![0-usage](docs/screenshots/0-usage.png) | ![1-basic](docs/screenshots/1-basic-mode.png) |
+
+| Plan 模式（tokyo-night 主题） | Web 调色盘 |
+|---|---|
+| ![2-plan](docs/screenshots/2-plan-mode.png) | ![3-web](docs/screenshots/3-web-palette.png) |
+
+- `0-usage.png` — mcode-theme 命令行用法
+- `1-basic-mode.png` — 应用主题后的 mcode 基础模式
+- `2-plan-mode.png` — 切换 Plan 模式后自动应用 Plan 主题
+- `3-web-palette.png` — Web 可视化调色盘（http://localhost:8598）
+
 ## 原理
 
 MiniMax Code CLI 基于 pi-agent 改造（TUI 派生自 Pi TUI）。pi 有完整的主题系统
@@ -75,8 +90,14 @@ mcode-theme list                 # 显示: Current: tokyo-night | Plan mode: syn
 mcode-theme unplan               # 取消 Plan 主题（Plan 模式与正常模式同主题）
 ```
 
-原理：工具在 cli.js 顶层注入 `__mcodePlanTheme` 变量 + 修改 `jri()`（主题应用）
-和 `gni()`（状态栏渲染，检测 planMode 变化）两个函数，Plan 模式激活时自动切换。
+原理：工具在 cli.js 顶层注入 `__mcodePlanThemeActive` / `__mcodePlanTheme` /
+`__mcodeCurrentTheme` 变量，并 patch 三处钩子：
+- **主题应用函数**（qsn / 旧版 gai）：Plan 激活时把待应用主题替换为 Plan 主题
+- **chrome 构造函数**（Bdn）：每次状态变化在**渲染前**检测 Plan 模式并刷新主题色，
+  保证界面整体切换（而非只换状态栏）
+- **状态栏渲染函数**（pon / 旧版 Jai）：Plan 模式徽标显示
+
+Plan 模式激活时自动切换主题，退出自动切回。
 
 注意：
 - `apply` 切换正常主题后，Plan 主题自动保留
@@ -141,3 +162,26 @@ mcode-theme unplan               # 取消 Plan 主题（Plan 模式与正常模�
 - 工具基于官方 cli.js 的 `id:"minimax",appearance:"dark|light",colors:Object.freeze({...})`
   模式匹配，若未来版本结构变化会报 "cannot find official theme block"，提示版本不匹配
 - 补丁仅修改颜色值，不影响其他功能；备份文件保证可回滚
+
+## 更新日志
+
+### v1.0.0（2026-08-15）
+
+**修复**
+- **Plan 主题切换不生效**：旧实现只在状态栏渲染函数里更新颜色对象（KA），
+  但 mcode 渲染无持续循环，导致已渲染区域保持旧色。新增 `Bdn`（chrome 构造）
+  钩子——每次状态变化在**渲染前**刷新主题色，Plan 切换时界面整体生效。
+- **Plan 主题二次 patch 生成非法 JS**：贪婪正则吞掉 `__mcodeCurrentTheme`，
+  改为整条 `var __mcodePlanThemeActive=...;` 语句替换。
+- **patch 失败回滚丢失已应用主题**：失败时回滚到官方原版而非 patch 前状态，
+  改为回滚到 patch 前内容（新增 `read_cli()`）。
+
+**适配**
+- 兼容 mcode 0.1.1：主题应用函数由 `gai` 重命名为 `qsn`、状态栏渲染函数由
+  `Jai` 重命名为 `pon`（按模式匹配，自动适配）。
+
+**新增**
+- 21 个内置主题（catppuccin / github-dark / claude-code / codex / kimi /
+  minimax 官方等）
+- Web 可视化调色盘（http://localhost:8598）：6 大模块实时预览 + Ctrl+S 写回
+- Plan 模式主题联动（Shift+Tab 自动切换）
