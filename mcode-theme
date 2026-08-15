@@ -417,25 +417,26 @@ def patch_cli(theme):
             else:
                 err("cannot find plan var block for refresh injection")
 
-    # 5d. patch Bdn（chrome/shell 构造，渲染前调用）：plan 模式变化时在渲染
+    # 5d. patch chrome/shell 构造（渲染前调用）：plan 模式变化时在渲染
     #     前更新主题色（KA），确保本次渲染整体使用 plan 主题，而非只更新
-    #     状态栏区域。Bdn 每次 session 快照变化都会执行（zt -> mnt.update）。
-    if 'typeof __mcodePlanThemeActive==="boolean"' not in content or \
-            'Bdn(t){let e=t.snapshot.session' not in content:
-        pass
+    #     状态栏区域。该函数每次 session 快照变化都会执行（zt -> mnt.update）。
+    #     版本兼容：旧版名 Bdn（0.1.0/0.1.1），0.1.2 起改名 Vfn。
     m_bdn = re.search(
-        r'function Bdn\(t\)\{let e=t\.snapshot\.session,',
+        r'function (Bdn|Vfn)\(t\)\{let e=t\.snapshot\.session,',
         content)
     if m_bdn:
+        bdn_fn = m_bdn.group(1)
         bdn_old = m_bdn.group(0)
-        bdn_new = ('function Bdn(t){'
+        bdn_new = ('function %s(t){'
                    'if(typeof __mcodePlanThemeActive==="boolean"){'
                    'var bnp=t.planMode?.displayMode==="plan";'
                    'if(bnp!==__mcodePlanThemeActive){'
                    '__mcodePlanThemeActive=bnp;'
                    'try{__mcodeThemeRefresh()}catch(_){}}}'
-                   'let e=t.snapshot.session,')
+                   'let e=t.snapshot.session,' % bdn_fn)
         content = content.replace(bdn_old, bdn_new, 1)
+        if 'var bnp=' not in content:
+            err("failed to inject chrome refresh hook")
 
     with open(CLI_PATH, "w", encoding="utf-8") as f:
         f.write(content)
