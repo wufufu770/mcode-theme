@@ -3,7 +3,7 @@
   "appearance": "light",
   "colors": {
     "brand": "#0094FC",
-    "wordmarkHighlight": "#3DAEFF",
+    "wordmarkHighlight": "#0094FC",
     "wordmarkShadow": "#0077D9",
     "signal": "#0094FC",
     "orbit": "#00767D",
