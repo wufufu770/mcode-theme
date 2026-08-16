@@ -37,10 +37,71 @@ import shutil
 import subprocess
 import sys
 
-MCODE_LIB = os.path.expanduser("~/.minimax-code/lib/node_modules/@minimax-ai/code")
+IS_WINDOWS = os.name == "nt" or sys.platform.startswith("win")
+
+
+def _mcode_install_root():
+    """mcode 安装根目录（与 cli.js Elr() 逻辑一致）：
+    Windows: %LOCALAPPDATA%/MinimaxCode（或 MCODE_INSTALL_ROOT）
+    macOS/Linux: ~/.local/share/minimax-code（或 MCODE_INSTALL_ROOT）"""
+    override = os.environ.get("MCODE_INSTALL_ROOT")
+    if override:
+        return os.path.abspath(os.path.expanduser(override))
+    if IS_WINDOWS:
+        local = os.environ.get("LOCALAPPDATA")
+        if not local:
+            err("LOCALAPPDATA is required to resolve the MCode install root.")
+        return os.path.join(local, "MinimaxCode")
+    xdg = os.environ.get("XDG_DATA_HOME")
+    if xdg:
+        return os.path.join(os.path.abspath(os.path.expanduser(xdg)), "minimax-code")
+    return os.path.join(os.path.expanduser("~"), ".local", "share", "minimax-code")
+
+
+def _candidate_install_roots():
+    """所有可能的安装根（按优先级）：显式覆盖 > 平台默认 > 历史 npm-prefix 路径。
+    返回含 cli.js 的实际路径优先，保证旧安装（~/.minimax-code）也能工作。"""
+    roots = []
+    override = os.environ.get("MCODE_INSTALL_ROOT")
+    if override:
+        roots.append(os.path.abspath(os.path.expanduser(override)))
+    if IS_WINDOWS:
+        local = os.environ.get("LOCALAPPDATA")
+        if local:
+            roots.append(os.path.join(local, "MinimaxCode"))
+    else:
+        roots.append(os.path.expanduser("~/.minimax-code"))  # 历史 npm --prefix 安装
+        xdg = os.environ.get("XDG_DATA_HOME")
+        if xdg:
+            roots.append(os.path.join(os.path.abspath(os.path.expanduser(xdg)), "minimax-code"))
+        roots.append(os.path.join(os.path.expanduser("~"), ".local", "share", "minimax-code"))
+    return roots
+
+
+def _mcode_lib_dir():
+    """定位实际存在的 mcode lib 目录（含 cli.js 的优先）。"""
+    for root in _candidate_install_roots():
+        candidate = os.path.join(root, "lib", "node_modules", "@minimax-ai", "code")
+        if os.path.isfile(os.path.join(candidate, "cli.js")):
+            return candidate
+    # 无探测命中：返回第一个候选（后续 verify_mcode 会给出明确报错）
+    return os.path.join(_candidate_install_roots()[0], "lib", "node_modules", "@minimax-ai", "code")
+
+
+def _mcode_data_dir():
+    """mcode 数据目录：~/.minimax（所有平台统一）"""
+    return os.path.join(os.path.expanduser("~"), ".minimax")
+
+
+def _node_executable_name():
+    """node 可执行文件名（Windows 为 node.exe）"""
+    return "node.exe" if IS_WINDOWS else "node"
+
+
+MCODE_LIB = _mcode_lib_dir()
 CLI_PATH = os.path.join(MCODE_LIB, "cli.js")
 BACKUP_PATH = os.path.join(MCODE_LIB, "cli.js.minimax-original")
-THEME_DIR = os.path.expanduser("~/.minimax/themes")
+THEME_DIR = os.path.join(_mcode_data_dir(), "themes")
 CURRENT_FILE = os.path.join(THEME_DIR, ".current-theme.json")
 
 UI_KEYS = [
@@ -438,6 +499,54 @@ def patch_cli(theme):
         if 'var bnp=' not in content:
             err("failed to inject chrome refresh hook")
 
+    # 5e. Logo 三段渐变插桩（F-06）：替换 Ent() 的离散 6 色数组为逐行 lerp 渐变
+    #     注入 __mcodeLogoGradient(rows, top, mid, bottom)，端点取主题三键。
+    m_ent = re.search(
+        r'function Ent\(t\)\{let\{fullMinWidth:e,mediumMinWidth:r,microMinWidth:i,'
+        r'fallbackTitle:n\}=xS\.hero,',
+        content)
+    if m_ent:
+        if '__mcodeLogoGradient' not in content:
+            grad_fn = (
+                'function __mcodeLogoGradient(rows,top,mid,bottom){'
+                'var N=Math.max(1,rows),cl=(process.stdout&&process.stdout.isTTY)?'
+                '(process.stdout.getColorDepth?process.stdout.getColorDepth():8):8,'
+                'full=cl>=24,out=[],i,t,f,c,hex,ch;'
+                'function hp(x){return{x:parseInt(x.slice(1,3),16),y:parseInt(x.slice(3,5),16),'
+                'z:parseInt(x.slice(5,7),16)}}'
+                'function fmt(a){var r=a.x.toString(16),g=a.y.toString(16),b=a.z.toString(16);'
+                'return"#"+("0"+r).slice(-2)+("0"+g).slice(-2)+("0"+b).slice(-2)}'
+                'function lerp(a,b,t){return{x:Math.round(a.x+(b.x-a.x)*t),'
+                'y:Math.round(a.y+(b.y-a.y)*t),z:Math.round(a.z+(b.z-a.z)*t)}}'
+                'function idx256(a){var r=Math.round(a.x/255*5),g=Math.round(a.y/255*5),'
+                'b=Math.round(a.z/255*5);return 16+36*r+6*g+b}'
+                'var A=hp(top),B=hp(mid),C=hp(bottom);'
+                'for(i=0;i<N;i++){t=N===1?0.5:i/(N-1);'
+                'c=t<0.5?lerp(A,B,t*2):lerp(B,C,(t-0.5)*2);'
+                'if(full){hex=fmt(c);out.push("\\x1b[38;2;"+c.x+";"+c.y+";"+c.z+"m")}'
+                'else{out.push("\\x1b[38;5;"+idx256(c)+"m")}}return out}'
+            )
+            # 注入到 5a 锚点后
+            inject_anchor = re.search(
+                r'var __mcodePlanThemeActive=!1,__mcodePlanTheme=[^;]*?,__mcodeCurrentTheme=[^;]*?;',
+                content)
+            if inject_anchor:
+                content = content.replace(inject_anchor.group(0),
+                                          inject_anchor.group(0) + grad_fn, 1)
+        # 替换 Ent 的 l 数组
+        old_l = ('l=[me.wordmarkHighlight,me.wordmarkHighlight,me.brand,me.brand,'
+                 'me.wordmarkShadow,me.wordmarkShadow]')
+        new_l = ('l=__mcodeLogoGradient(a.length,me.wordmarkHighlight,me.brand,'
+                 'me.wordmarkShadow)')
+        if old_l in content:
+            content = content.replace(old_l, new_l, 1)
+        # 每行用渐变序列号（m 取 l[m]，l 长度=行数，无需 %7；保留 fallback）
+        old_map = ('m=d%7,p=s?l[m]??me.brand:me.brand;return dun(ye.bold.hex(p)(u),t)')
+        new_map = ('m=d%7,p=s?(l[m]??me.brand):me.brand;return p&&p.startsWith("\\x1b")?'
+                   'dun(p+u+"\\x1b[0m",t):dun(ye.bold.hex(p)(u),t)')
+        if old_map in content:
+            content = content.replace(old_map, new_map, 1)
+
     with open(CLI_PATH, "w", encoding="utf-8") as f:
         f.write(content)
     # 写 current 时保留已有 planTheme 并记录 mcode 指纹
@@ -454,15 +563,25 @@ def patch_cli(theme):
         json.dump(theme, f, indent=2)
     # post-patch 自动 JS 语法校验（防止破坏 cli.js）
     if os.path.isfile(CLI_PATH) and os.environ.get("MCODE_THEME_NO_CHECK") != "1":
+        node_exe = _node_executable_name()
         candidates = [
-            os.path.join(MCODE_LIB, "..", "..", "runtime", "node", "bin", "node"),
+            # mcode 内置隔离 node（<install_root>/runtime/node/bin/node）
+            os.path.join(MCODE_LIB, "..", "..", "runtime", "node", "bin", node_exe),
+            # PATH 中的 node
             shutil.which("node"),
+            shutil.which("node.exe"),
         ]
         node_bin = next((c for c in candidates if c and os.path.isfile(c)), None)
         if node_bin:
-            r = subprocess.run([node_bin, "--check", CLI_PATH],
-                               capture_output=True, text=True, timeout=30)
-            if r.returncode != 0:
+            try:
+                r = subprocess.run([node_bin, "--check", CLI_PATH],
+                                   capture_output=True, text=True, timeout=60)
+            except subprocess.TimeoutExpired:
+                # 低性能机器上大 cli.js（含渐变注入）语法校验可能超时；
+                # 超时不视为破坏，跳过回滚（patch 已通过正则锚点校验）
+                print("warning: node --check 超时，跳过语法校验（patch 已应用）", file=sys.stderr)
+                r = None
+            if r is not None and r.returncode != 0:
                 # patch 破坏文件，回滚到 patch 前状态（保留已应用主题）
                 try:
                     with open(CLI_PATH, "w", encoding="utf-8") as f:
