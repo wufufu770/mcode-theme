@@ -5,68 +5,216 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MiniMax Code 主题配置器</title>
 <style>
+/* ============ 设计 tokens（外壳固定，主题色动态） ============ */
 :root {
-  --brand:#68C0FF; --hl:#93D2FF; --shadow:#3DAEFF; --signal:#68C0FF; --orbit:#1CCDD2;
-  --accent:#68C0FF; --umbg:#1E3A5F; --text:#EDEDED; --muted:#ADADAD; --dim:#7A7A7A;
+  --bg-page:#0d1117; --bg-app:#11151c; --bg-raised:#161b24; --bg-card:#1a212e;
+  --bg-input:#0f141c; --bg-hover:#1c2433; --border-weak:#232c3d; --border-strong:#2c3749;
+  --text-1:#e6e9ef; --text-2:#9fb2c8; --text-3:#7a8aa0;
+  --brand:#68C0FF; --brand-ink:#08121c;
+  --brand-soft:color-mix(in srgb, var(--brand) 12%, transparent);
+  --radius-sm:4px; --radius-md:6px; --radius-lg:8px; --radius-xl:10px; --radius-logo:12px;
+  --shadow-card:0 1px 2px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+  --shadow-card-hover:0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+  --shadow-brand:0 2px 8px color-mix(in srgb, var(--brand) 35%, transparent);
+  --ease-out:cubic-bezier(0,0,0.2,1); --ease-in:cubic-bezier(0.4,0,1,1);
+  --font-sans:-apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono:ui-monospace, "SF Mono", Consolas, monospace;
+  /* 主题动态色（applyCSSVars 覆盖） */
+  --hl:#93D2FF; --shadow:#3DAEFF; --signal:#68C0FF; --orbit:#1CCDD2; --accent:#68C0FF;
+  --umbg:#1E3A5F; --text:#EDEDED; --muted:#ADADAD; --dim:#7A7A7A;
   --border:#2A3A4E; --line:#3D5A7A; --success:#28C567; --warning:#FFC340; --error:#FF5E6C;
   --syn-blue:#68C0FF; --syn-flamingo:#F2CDCD; --syn-green:#A6E3A1; --syn-mauve:#93D2FF;
   --syn-overlay:#8B949E; --syn-peach:#FAB387; --syn-pink:#F5C2E7; --syn-red:#FF5E6C;
   --syn-sapphire:#74C7EC; --syn-subtext:#A6ADC8; --syn-teal:#1CCDD2; --syn-text:#EDEDED; --syn-yellow:#F9E2AF;
-  --font: ui-monospace, Consolas, monospace;
 }
 * { box-sizing:border-box; margin:0; padding:0; }
-body { font-family:var(--font); background:#11151c; color:#e6e9ef; height:100vh; display:flex; flex-direction:column; }
-header { display:flex; align-items:center; gap:14px; padding:10px 20px; background:#171c26; border-bottom:1px solid #2a3242; }
-header .logo { display:flex; align-items:center; gap:10px; }
-header .logo svg { width:30px; height:30px; border-radius:7px; }
-header h1 { font-size:16px; font-weight:700; }
+html,body { height:100%; }
+body {
+  font-family:var(--font-sans); background:var(--bg-app); color:var(--text-1);
+  display:flex; flex-direction:column; overflow:hidden;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+::selection { background:var(--brand-soft); }
+/* ============ Scrollbar ============ */
+*::-webkit-scrollbar { width:10px; height:10px; }
+*::-webkit-scrollbar-track { background:transparent; }
+*::-webkit-scrollbar-thumb { background:var(--border-weak); border-radius:5px; border:2px solid transparent; background-clip:content-box; }
+*::-webkit-scrollbar-thumb:hover { background:var(--border-strong); background-clip:content-box; border:2px solid transparent; }
+
+/* ============ Header ============ */
+header {
+  display:flex; align-items:center; gap:14px; padding:10px 20px;
+  background:var(--bg-raised); border-bottom:1px solid var(--border-weak);
+}
+header .logo { display:flex; align-items:center; gap:10px; min-width:0; }
+header .logo svg { width:30px; height:30px; border-radius:var(--radius-logo); flex-shrink:0; }
+header h1 { font-size:16px; font-weight:700; line-height:1.4; white-space:nowrap; }
 header .spacer { flex:1; }
-.badge { font-size:11px; padding:3px 9px; border-radius:20px; background:#1d2634; color:#9fb2c8; border:1px solid #2e3a4e; }
-#btn-apply { background:var(--brand); color:#08121c; border:none; padding:8px 18px; border-radius:6px; font-weight:700; cursor:pointer; font-family:var(--font); font-size:13px; }
-#btn-apply:hover { filter:brightness(1.15); }
-#btn-restore { background:#232b3a; color:#cbd5e1; border:1px solid #34415a; padding:8px 14px; border-radius:6px; cursor:pointer; font-family:var(--font); font-size:13px; }
+.badge {
+  font-size:11px; padding:3px 9px; border-radius:20px; background:var(--bg-hover);
+  color:var(--text-2); border:1px solid var(--border-weak); white-space:nowrap;
+}
+#theme-select {
+  max-width:160px; background:var(--bg-input); color:var(--text-1);
+  border:1px solid var(--border-strong); border-radius:var(--radius-sm);
+  padding:6px 8px; font-size:12px; font-family:var(--font-sans);
+}
+#theme-select:focus { outline:2px solid var(--brand); outline-offset:1px; }
+.header-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+
+/* ============ 布局 ============ */
 .layout { display:flex; flex:1; overflow:hidden; }
-nav { width:230px; background:#141922; border-right:1px solid #232c3d; padding:14px 10px; overflow-y:auto; }
-nav .group-label { font-size:10px; color:#7a8aa0; text-transform:uppercase; letter-spacing:1px; margin:14px 6px 6px; }
-nav button { display:block; width:100%; text-align:left; padding:9px 12px; margin:2px 0; background:none; border:none; color:#b9c4d4; border-radius:6px; cursor:pointer; font-family:var(--font); font-size:13px; }
-nav button:hover { background:#1c2433; color:#fff; }
-nav button.active { background:var(--brand); color:#08121c; font-weight:700; }
-nav button .desc { display:block; font-size:10px; color:#7a8aa0; margin-top:2px; }
-main { flex:1; display:flex; overflow:hidden; }
-.panel { flex:1; padding:20px 24px; overflow-y:auto; }
+
+/* ============ Nav ============ */
+nav {
+  width:220px; background:var(--bg-raised); border-right:1px solid var(--border-weak);
+  padding:14px 10px; overflow-y:auto; flex-shrink:0;
+}
+nav .group-label {
+  font-size:10px; font-weight:600; color:var(--text-3); text-transform:uppercase;
+  letter-spacing:0.8px; margin:14px 6px 6px;
+}
+nav button {
+  display:block; width:100%; text-align:left; padding:9px 12px; margin:2px 0;
+  background:transparent; border:none; color:var(--text-2); border-radius:var(--radius-md);
+  cursor:pointer; font-family:var(--font-sans); font-size:13px; line-height:1.5;
+  border-left:3px solid transparent;
+  transition:background-color 100ms var(--ease-out), color 100ms var(--ease-out);
+}
+nav button:hover { background:var(--bg-hover); color:#fff; }
+nav button.active {
+  background:linear-gradient(90deg, var(--brand-soft), transparent);
+  border-left-color:var(--brand); color:var(--brand-ink); font-weight:700;
+  border-radius:var(--radius-md) 0 0 var(--radius-md);
+  transition:background-color 150ms var(--ease-out), color 150ms var(--ease-out);
+}
+nav button .desc { display:block; font-size:10px; color:var(--text-3); margin-top:2px; font-weight:400; }
+
+/* ============ Main / Panel ============ */
+main { flex:1; display:flex; overflow:hidden; min-width:0; }
+.panel { flex:1; padding:20px 24px; overflow-y:auto; min-width:0; }
 .panel h2 { font-size:15px; margin-bottom:4px; }
-.panel .hint { font-size:12px; color:#8a99ad; margin-bottom:16px; }
+.panel .hint { font-size:12px; color:var(--text-3); margin-bottom:16px; line-height:1.5; }
+.panel h3 { margin:14px 0 8px; font-size:13px; font-weight:600; }
+.panel-enter { animation:panelIn 200ms var(--ease-out); }
+@keyframes panelIn {
+  from { opacity:0; transform:translateY(4px); }
+  to { opacity:1; transform:translateY(0); }
+}
+
+/* ============ 颜色卡 ============ */
 .color-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px; }
-.color-item { background:#1a212e; border:1px solid #283245; border-radius:8px; padding:10px 12px; display:flex; align-items:center; gap:10px; }
-.color-item .swatch { width:38px; height:38px; border-radius:6px; border:2px solid #34415a; cursor:pointer; position:relative; overflow:hidden; flex-shrink:0; }
+.color-item {
+  background:var(--bg-card); border:1px solid var(--border-strong); border-radius:var(--radius-lg);
+  padding:10px 12px; display:flex; align-items:center; gap:10px; position:relative;
+  box-shadow:var(--shadow-card);
+  transition:box-shadow 150ms var(--ease-out), border-color 150ms var(--ease-out);
+}
+.color-item:hover { box-shadow:var(--shadow-card-hover); border-color:var(--border-strong); }
+.color-item .swatch {
+  width:38px; height:38px; border-radius:var(--radius-md); border:2px solid var(--border-strong);
+  cursor:pointer; position:relative; overflow:hidden; flex-shrink:0;
+  transition:border-color 120ms var(--ease-out);
+}
+.color-item .swatch:hover { border-color:var(--brand); }
 .color-item .swatch input[type=color] { position:absolute; inset:-8px; width:60px; height:60px; opacity:0; cursor:pointer; }
 .color-item .meta { flex:1; min-width:0; }
-.color-item .meta .name { font-size:12px; font-weight:700; color:#dbe3ee; }
-.color-item .meta .usage { font-size:10px; color:#7a8aa0; margin-top:1px; }
-.color-item .hex { width:84px; background:#0f141c; border:1px solid #2c3749; color:#dbe3ee; border-radius:5px; padding:5px 7px; font-family:var(--font); font-size:12px; text-align:center; }
-.color-item .hex:focus { outline:2px solid var(--brand); }
-select, input[type=text] { background:#0f141c; color:#dbe3ee; border:1px solid #2c3749; border-radius:5px; padding:6px 10px; font-family:var(--font); font-size:12px; }
-select:focus, input[type=text]:focus { outline:2px solid var(--brand); }
+.color-item .meta .name { font-size:12px; font-weight:700; color:var(--text-1); font-family:var(--font-mono); }
+.color-item .meta .usage { font-size:10px; color:var(--text-3); margin-top:1px; }
+.color-item .hex {
+  width:84px; background:var(--bg-input); border:1px solid var(--border-strong); color:var(--text-1);
+  border-radius:var(--radius-sm); padding:5px 7px; font-family:var(--font-mono); font-size:12px; text-align:center;
+  transition:border-color 120ms var(--ease-out);
+}
+.color-item .hex:focus { outline:2px solid var(--brand); outline-offset:1px; }
+.color-item .hex.invalid { border-color:var(--error); }
+.color-item .reset {
+  position:absolute; top:6px; right:6px; width:20px; height:20px; line-height:1;
+  background:transparent; border:none; color:var(--text-3); border-radius:var(--radius-sm);
+  cursor:pointer; font-size:12px; opacity:0; pointer-events:none;
+  transition:opacity 120ms var(--ease-out) 40ms, color 120ms var(--ease-out);
+}
+.color-item:hover .reset { opacity:1; pointer-events:auto; }
+.color-item .reset:hover { color:var(--text-1); background:var(--bg-hover); }
+.color-item .contrast {
+  position:absolute; right:8px; bottom:6px; font-size:11px; line-height:1.4;
+  display:flex; align-items:center; gap:3px;
+}
+.color-item .contrast.ok { color:var(--success); }
+.color-item .contrast.bad { color:var(--error); font-weight:600; }
+.color-item.has-contrast { padding-bottom:22px; }
+
+/* ============ 表单 ============ */
+select, input[type=text] {
+  background:var(--bg-input); color:var(--text-1); border:1px solid var(--border-strong);
+  border-radius:var(--radius-sm); padding:6px 10px; font-family:var(--font-sans); font-size:12px;
+  transition:border-color 120ms var(--ease-out);
+}
+select:focus, input[type=text]:focus { outline:2px solid var(--brand); outline-offset:1px; }
+
+/* ============ 按钮 ============ */
 .toolbar { display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
-.btn { background:#232b3a; color:#cbd5e1; border:1px solid #34415a; padding:7px 14px; border-radius:6px; cursor:pointer; font-family:var(--font); font-size:12px; }
-.btn:hover { background:#2b3547; }
-.btn.primary { background:var(--brand); color:#08121c; font-weight:700; }
-.row { display:flex; gap:12px; align-items:center; margin-bottom:10px; }
-/* preview */
-#preview-wrap { width:480px; background:#0c1016; border-left:1px solid #232c3d; display:flex; flex-direction:column; }
-#preview-wrap .pv-head { padding:8px 14px; font-size:11px; color:#7a8aa0; border-bottom:1px solid #232c3d; display:flex; justify-content:space-between; }
-#preview { flex:1; padding:18px 16px; overflow-y:auto; }
-.pv-app { border:1px solid var(--border); border-radius:10px; background:#0f141c; overflow:hidden; }
+.btn {
+  background:var(--bg-hover); color:var(--text-2); border:1px solid var(--border-strong);
+  padding:7px 14px; border-radius:var(--radius-md); cursor:pointer;
+  font-family:var(--font-sans); font-size:12px; font-weight:500; line-height:1.4;
+  transition:background-color 120ms var(--ease-out), color 120ms var(--ease-out),
+             box-shadow 120ms var(--ease-out), border-color 120ms var(--ease-out),
+             transform 80ms var(--ease-out);
+}
+.btn:hover { background:var(--bg-hover); filter:brightness(1.12); }
+.btn:active { transform:scale(0.98); }
+.btn:focus-visible { outline:2px solid var(--brand); outline-offset:2px; }
+.btn:disabled { background:var(--bg-card); border-color:var(--border-weak); color:var(--text-3); cursor:not-allowed; }
+.btn.primary {
+  background:var(--brand); color:var(--brand-ink); font-weight:700; border:none;
+  box-shadow:var(--shadow-brand);
+}
+.btn.primary:hover { filter:brightness(1.15); }
+.btn.ghost { background:transparent; color:var(--text-2); }
+.btn.ghost:hover { background:var(--bg-hover); }
+.row { display:flex; gap:12px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+
+/* ============ Preview（终端窗口 chrome） ============ */
+#preview-wrap {
+  width:400px; background:var(--bg-page); border-left:1px solid var(--border-weak);
+  display:flex; flex-direction:column; flex-shrink:0; transition:width 200ms var(--ease-out);
+}
+#preview-wrap .pv-head {
+  padding:8px 14px; font-size:11px; color:var(--text-3); border-bottom:1px solid var(--border-weak);
+  display:flex; justify-content:space-between; align-items:center; gap:8px;
+}
+.pv-appearance-btn {
+  background:var(--bg-hover); border:1px solid var(--border-strong); color:var(--text-2);
+  border-radius:var(--radius-sm); padding:2px 8px; font-size:11px; cursor:pointer;
+  font-family:var(--font-sans);
+  transition:background-color 120ms var(--ease-out), color 120ms var(--ease-out);
+}
+.pv-appearance-btn:hover { background:var(--bg-hover); filter:brightness(1.12); color:var(--text-1); }
+#preview { flex:1; padding:16px 14px; overflow-y:auto; }
+.pv-shell {
+  border:1px solid var(--border-weak); border-radius:var(--radius-xl); overflow:hidden;
+  background:var(--bg-page); box-shadow:var(--shadow-card-hover);
+}
+.pv-shell-bar {
+  height:36px; background:var(--bg-raised); border-bottom:1px solid var(--border-weak);
+  display:flex; align-items:center; gap:10px; padding:0 12px; flex-shrink:0;
+}
+.pv-shell-dots { display:flex; gap:6px; flex-shrink:0; }
+.pv-shell-dots i { width:12px; height:12px; border-radius:50%; display:block; }
+.pv-shell-dots i:nth-child(1){ background:#FF5F56; } .pv-shell-dots i:nth-child(2){ background:#FFBD2E; } .pv-shell-dots i:nth-child(3){ background:#27C93F; }
+.pv-shell-title { font-size:11px; color:var(--text-3); font-family:var(--font-mono); }
+.pv-app { border:1px solid var(--border); border-radius:var(--radius-xl); background:var(--bg-input); overflow:hidden; }
 .pv-top { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--line); }
 .pv-logo { display:flex; align-items:center; gap:8px; }
-.pv-logo svg { width:26px; height:26px; border-radius:6px; }
+.pv-logo svg { width:26px; height:26px; border-radius:var(--radius-md); }
 .pv-name { font-weight:800; font-size:14px; letter-spacing:.5px; }
 .pv-name .a { color:var(--hl); text-shadow:0 0 6px var(--brand); }
 .pv-name .b { color:var(--brand); text-shadow:0 0 6px var(--shadow); }
 .pv-top .status { margin-left:auto; display:flex; align-items:center; gap:10px; font-size:10px; }
 .dot { width:8px; height:8px; border-radius:50%; background:var(--signal); box-shadow:0 0 6px var(--signal); }
 .pv-body { padding:14px; }
-.pv-border-hint { border:1px dashed var(--line); border-radius:8px; padding:8px; margin-bottom:10px; text-align:center; font-size:10px; color:var(--dim); }
+.pv-border-hint { border:1px dashed var(--line); border-radius:var(--radius-lg); padding:8px; margin-bottom:10px; text-align:center; font-size:10px; color:var(--dim); }
 .pv-user { background:var(--umbg); color:var(--text); border-radius:9px; padding:10px 12px; margin-bottom:10px; font-size:12px; }
 .pv-user .tag { font-size:9px; color:var(--muted); margin-bottom:4px; }
 .pv-ai { color:var(--text); font-size:12px; line-height:1.65; margin-bottom:10px; }
@@ -76,22 +224,74 @@ select:focus, input[type=text]:focus { outline:2px solid var(--brand); }
 .pv-ai .succ { color:var(--success); }
 .pv-ai .warn { color:var(--warning); }
 .pv-ai .err { color:var(--error); }
-.pv-code { border:1px solid var(--border); border-left:3px solid var(--brand); border-radius:6px; padding:10px 12px; margin:10px 0; font-size:11px; overflow-x:auto; background:#0d1117; }
+.pv-code {
+  border:1px solid var(--border); border-left:3px solid var(--brand); border-radius:var(--radius-md);
+  padding:10px 12px; margin:10px 0; font-size:11px; overflow-x:auto; background:var(--bg-input);
+  font-family:var(--font-mono); line-height:1.6;
+}
 .pv-code .k { color:var(--syn-mauve); } .pv-code .s { color:var(--syn-green); } .pv-code .f { color:var(--syn-blue); }
 .pv-code .n { color:var(--syn-peach); } .pv-code .c { color:var(--syn-overlay); } .pv-code .t { color:var(--syn-teal); }
 .pv-code .y { color:var(--syn-yellow); } .pv-code .r { color:var(--syn-red); }
 .pv-foot { display:flex; gap:6px; padding:10px 14px; border-top:1px solid var(--line); align-items:center; font-size:10px; color:var(--dim); }
-.pv-foot .plan-badge { background:var(--accent); color:#0a0f16; font-weight:800; padding:2px 8px; border-radius:4px; font-size:9px; }
+.pv-foot .plan-badge { background:var(--accent); color:var(--on-accent); font-weight:800; padding:2px 8px; border-radius:var(--radius-sm); font-size:9px; }
 .pv-foot .perm { color:var(--muted); }
-.pv-input { margin-top:8px; border:1px solid var(--border); border-radius:6px; padding:8px 10px; color:var(--text); font-size:12px; background:#0d1117; }
+.pv-input { margin-top:8px; border:1px solid var(--border); border-radius:var(--radius-md); padding:8px 10px; color:var(--text); font-size:12px; background:var(--bg-input); }
 .pv-input:focus { outline:2px solid var(--accent); }
-.pv-alert { border-radius:6px; padding:8px 10px; font-size:11px; margin:8px 0; }
+.pv-alert { border-radius:var(--radius-md); padding:8px 10px; font-size:11px; margin:8px 0; }
 .pv-alert.success { background:color-mix(in srgb, var(--success) 14%, transparent); color:var(--success); border:1px solid var(--success); }
 .pv-alert.warning { background:color-mix(in srgb, var(--warning) 14%, transparent); color:var(--warning); border:1px solid var(--warning); }
 .pv-alert.error { background:color-mix(in srgb, var(--error) 14%, transparent); color:var(--error); border:1px solid var(--error); }
-#toast { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--success); color:#07130b; padding:10px 22px; border-radius:8px; font-weight:700; font-size:13px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:99; }
-#toast.show { opacity:1; }
+
+/* ============ Toast ============ */
+#toast {
+  position:fixed; bottom:22px; left:50%; transform:translateX(-50%);
+  background:var(--success); color:var(--on-success); padding:10px 22px; border-radius:var(--radius-lg);
+  font-weight:700; font-size:13px; font-family:var(--font-sans);
+  opacity:0; pointer-events:none; z-index:99; box-shadow:0 4px 12px rgba(0,0,0,0.4);
+  transition:opacity 150ms var(--ease-out), transform 150ms var(--ease-out);
+}
+#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+#toast.hide { opacity:0; transform:translateX(-50%) translateY(4px); }
 #toast.err { background:var(--error); color:#fff; }
+
+/* ============ 响应式 ============ */
+@media (max-width:1279px){
+  #preview-wrap { width:360px; }
+  nav { width:210px; }
+}
+@media (max-width:767px){
+  body { overflow:auto; }
+  header { flex-wrap:wrap; gap:8px; padding:8px 12px; }
+  header .logo h1 { font-size:14px; }
+  .header-actions { width:100%; justify-content:flex-end; flex-wrap:wrap; }
+  .layout { flex-direction:column; overflow:visible; }
+  nav {
+    width:100%; height:48px; border-right:none; border-bottom:1px solid var(--border-weak);
+    display:flex; overflow-x:auto; overflow-y:hidden; padding:6px 8px; gap:6px;
+  }
+  nav .group-label { display:none; }
+  nav button {
+    width:auto; flex-shrink:0; white-space:nowrap; padding:6px 14px; margin:0;
+    border-left:none; border-bottom:3px solid transparent; border-radius:var(--radius-md);
+  }
+  nav button.active { background:var(--brand-soft); border-left:none; border-bottom-color:var(--brand); border-radius:var(--radius-md); color:var(--text-1); }
+  nav button .desc { display:none; }
+  main { flex-direction:column; overflow:visible; }
+  .panel { overflow:visible; padding:16px; }
+  #preview-wrap { width:100%; border-left:none; border-top:1px solid var(--border-weak); }
+}
+@media (max-width:479px){
+  .color-grid { grid-template-columns:1fr; }
+  .color-item .hex { width:72px; }
+  header h1 { display:none; }
+  .badge { font-size:10px; }
+}
+
+/* ============ Reduced Motion ============ */
+@media (prefers-reduced-motion: reduce){
+  .panel-enter { animation:none; }
+  * { transition-duration:0ms !important; animation-duration:0ms !important; }
+}
 </style>
 </head>
 <body>
@@ -108,9 +308,12 @@ select:focus, input[type=text]:focus { outline:2px solid var(--brand); }
   <span class="badge" id="badge-version">mcode: ...</span>
   <span class="badge" id="badge-theme">主题: -</span>
   <span class="badge" id="badge-plan">Plan: -</span>
-  <button id="btn-save" title="将当前配色保存为新主题">保存主题</button>
-  <button id="btn-restore">恢复官方</button>
-  <button id="btn-apply">应用到 mcode</button>
+  <div class="header-actions">
+    <select id="theme-select" title="快速切换主题（仅预览，不写盘）"></select>
+    <button class="btn" id="btn-save" title="将当前配色保存为新主题">保存主题</button>
+    <button class="btn ghost" id="btn-restore">恢复官方</button>
+    <button class="btn primary" id="btn-apply">应用到 mcode</button>
+  </div>
 </header>
 
 <div class="layout">
@@ -119,7 +322,13 @@ select:focus, input[type=text]:focus { outline:2px solid var(--brand); }
   <main>
     <div class="panel" id="panel"></div>
     <div id="preview-wrap">
-      <div class="pv-head"><span>实时预览（模拟 mcode 界面）</span><span id="pv-font-label">字体: 系统</span></div>
+      <div class="pv-head">
+        <span>实时预览（模拟 mcode 界面）</span>
+        <span style="display:flex;align-items:center;gap:8px">
+          <button class="pv-appearance-btn" id="pv-appearance-btn" title="切换预览外观">🌙 暗</button>
+          <span id="pv-font-label">字体: 系统</span>
+        </span>
+      </div>
       <div id="preview"></div>
     </div>
   </main>
@@ -132,6 +341,8 @@ const $ = s => document.querySelector(s);
 let STATE = null;
 let currentPanel = 'ui';
 let dirty = {};   // { 'colors.brand': '#xxxxxx' }
+// 预览外观：'live' 跟随当前编辑 | 'dark' | 'light'（仅影响预览区，用 defaults 渲染）
+let pvAppearance = 'live';
 const USAGE = {
   brand:'Logo/标题/品牌', wordmarkHighlight:'Logo 高光', wordmarkShadow:'Logo 阴影',
   signal:'状态点/强调', orbit:'辅助强调', accent:'链接/代码/选中/徽标',
@@ -185,12 +396,60 @@ function applyCSSVars(theme){
   st.setProperty('--syn-yellow',s.yellow);
 }
 
+// WCAG 对比度（hex → ratio）
+function contrastRatio(hex1, hex2){
+  function lum(hex){
+    const ch = hex.replace('#','').match(/[0-9a-f]{2}/gi).map(x=>parseInt(x,16)/255);
+    const f = ch.map(v => v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4));
+    return 0.2126*f[0] + 0.7152*f[1] + 0.0722*f[2];
+  }
+  const l1=lum(hex1), l2=lum(hex2);
+  const hi=Math.max(l1,l2), lo=Math.min(l1,l2);
+  return (hi+0.05)/(lo+0.05);
+}
+
+// 预览渲染：pvAppearance!=='live' 时仅预览区用 defaults[light|dark] 色
+function previewVars(theme){
+  const c = theme.colors||{};
+  const s = theme.syntax||{};
+  return `--brand:${c.brand};--hl:${c.wordmarkHighlight};--shadow:${c.wordmarkShadow};`+
+    `--signal:${c.signal};--orbit:${c.orbit};--accent:${c.accent};`+
+    `--umbg:${c.userMessageBg};--text:${c.text};--muted:${c.muted};--dim:${c.dim};`+
+    `--border:${c.border};--line:${c.line};--success:${c.success};--warning:${c.warning};--error:${c.error};`+
+    `--syn-blue:${s.blue};--syn-flamingo:${s.flamingo};--syn-green:${s.green};--syn-mauve:${s.mauve};`+
+    `--syn-overlay:${s.overlay2};--syn-peach:${s.peach};--syn-pink:${s.pink};--syn-red:${s.red};`+
+    `--syn-sapphire:${s.sapphire};--syn-subtext:${s.subtext0};--syn-teal:${s.teal};--syn-text:${s.text};`+
+    `--syn-yellow:${s.yellow}`;
+}
+
 function renderPreview(){
   const font = localStorage.getItem('mcode-theme-font') || '';
   document.documentElement.style.setProperty('--font', font || "ui-monospace, Consolas, monospace");
   $('#pv-font-label').textContent = '字体: ' + (localStorage.getItem('mcode-theme-font-name') || '系统');
+  // 预览外观色源
+  let srcTheme = null;
+  let apprLabel = '跟随编辑';
+  if(STATE && STATE.defaults && pvAppearance !== 'live'){
+    srcTheme = {
+      colors: STATE.defaults.ui[pvAppearance] || {},
+      syntax: STATE.defaults.syntax[pvAppearance] || {},
+    };
+    apprLabel = pvAppearance === 'dark' ? '🌙 暗' : '☀ 亮';
+  } else {
+    apprLabel = pvAppearance === 'live' ? '跟随编辑' : (pvAppearance === 'dark' ? '🌙 暗' : '☀ 亮');
+  }
+  const localVars = srcTheme ? `style="${previewVars(srcTheme)}"` : '';
+  const apprBtn = $('#pv-appearance-btn');
+  if(apprBtn){
+    apprBtn.textContent = pvAppearance==='live' ? '跟随编辑' : (pvAppearance==='dark' ? '🌙 暗' : '☀ 亮');
+  }
   $('#preview').innerHTML = `
-  <div class="pv-app">
+  <div class="pv-shell">
+    <div class="pv-shell-bar">
+      <span class="pv-shell-dots"><i></i><i></i><i></i></span>
+      <span class="pv-shell-title">mcode — 实时预览${pvAppearance!=='live' ? ' · ' + apprLabel : ''}</span>
+    </div>
+    <div class="pv-app" ${localVars}>
     <div class="pv-top">
       <div class="pv-logo">
         <svg viewBox="0 0 80 80"><rect width="80" height="80" rx="18" fill="var(--brand)"/><text x="40" y="52" font-size="40" font-weight="900" text-anchor="middle" fill="#0a121c" font-family="Arial">M</text></svg>
@@ -223,14 +482,34 @@ function renderPreview(){
       <span class="perm">·</span><span>~/projects</span>
     </div>
     <div class="pv-input" contenteditable="true">输入框 · Enter send</div>
+    </div>
   </div>`;
 }
 
+// 增强颜色卡：重置按钮 + 对比度徽标（附加渲染，不改原结构）
 function colorItem(key, val, usage, prefix){
-  return `<div class="color-item">
+  const dflt = STATE && STATE.defaults ? (STATE.defaults[prefix==='syn'?'syntax':(prefix==='ansi'?'ansi':'ui')] || {}) : {};
+  const defVal = (dflt.dark||{})[key] || '';
+  const showContrast = (prefix==='ui') && (key==='userMessageBg');
+  const isTextKey = key==='text';
+  let contrastHtml = '';
+  if(showContrast || isTextKey){
+    const t = STATE && STATE.activeTheme ? STATE.activeTheme.colors : {};
+    const text = t.text || (STATE && STATE.defaults ? (STATE.defaults.ui.dark||{}).text : '#EDEDED');
+    const umbg = t.userMessageBg || (STATE && STATE.defaults ? (STATE.defaults.ui.dark||{}).userMessageBg : '#1E3A5F');
+    const ratio = contrastRatio(text, umbg);
+    const ok = ratio >= 4.5;
+    const show = showContrast;
+    if(show){
+      contrastHtml = `<span class="contrast ${ok?'ok':'bad'}">${ok?'AA ✓':('✗ 对比度不足 ' + ratio.toFixed(1) + ':1')}</span>`;
+    }
+  }
+  return `<div class="color-item${contrastHtml?' has-contrast':''}">
     <div class="swatch" style="background:${val}"><input type="color" id="${prefix}-${key}" value="${val}" data-key="${key}"></div>
     <div class="meta"><div class="name">${key}</div><div class="usage">${usage[key]||''}</div></div>
     <input class="hex" value="${val}" data-hex="${key}">
+    ${defVal ? `<button class="reset" data-reset="${prefix}-${key}" title="重置为默认" type="button">↺</button>` : ''}
+    ${contrastHtml}
   </div>`;
 }
 
@@ -242,6 +521,8 @@ async function loadTheme(name){
   renderPreview();
   renderPanel();
   $('#badge-theme').textContent = '主题: ' + t.name + (t.appearance==='light'?' (亮)':'');
+  const sel = $('#theme-select');
+  if(sel && sel.value !== name) sel.value = name;
 }
 
 function currentThemeObj(){
@@ -253,33 +534,53 @@ function currentThemeObj(){
   return out;
 }
 
+// 面板切换动效：重绘后强制 reflow 再移除 enter 类
+function animatePanel(p){
+  p.classList.remove('panel-enter');
+  void p.offsetWidth; // reflow
+  p.classList.add('panel-enter');
+}
+
+function bindColorInputs(keys, section, prefix, defSection){
+  keys.forEach(k=>{
+    const sw=$('#'+prefix+'-'+k), hex=$('[data-hex="'+k+'"]');
+    if(!sw || !hex) return;
+    sw.addEventListener('input',()=>{ hex.value=sw.value; hex.classList.remove('invalid'); onColorChange(section,k,sw.value); });
+    hex.addEventListener('input',()=>{
+      if(/^#[0-9a-fA-F]{6}$/.test(hex.value)){ sw.value=hex.value; hex.classList.remove('invalid'); onColorChange(section,k,hex.value); }
+      else { hex.classList.add('invalid'); }
+    });
+    // 重置按钮（附加增强）
+    const rst=$('[data-reset="'+prefix+'-'+k+'"]');
+    if(rst){
+      rst.addEventListener('click',()=>{
+        const dflt = STATE && STATE.defaults ? (STATE.defaults[defSection]||{}) : {};
+        const defVal = (dflt.dark||{})[k] || (dflt.light||{})[k] || '';
+        if(defVal){
+          sw.value = defVal; hex.value = defVal; hex.classList.remove('invalid');
+          onColorChange(section,k,defVal);
+          toast('已重置 ' + k);
+        }
+      });
+    }
+  });
+}
+
 function renderPanel(){
   const p = $('#panel');
   const t = STATE.activeTheme || {colors:{},ansi:{},syntax:{}};
   if(currentPanel==='ui'){
     p.innerHTML = `<h2>UI 配色</h2><div class="hint">调整 mcode 界面主色调，右侧实时预览。</div>
       <div class="color-grid">${STATE.uiKeys.map(k=>colorItem(k, t.colors[k], USAGE, 'ui')).join('')}</div>`;
-    STATE.uiKeys.forEach(k=>{
-      const sw=$('#ui-'+k), hex=$('[data-hex="'+k+'"]');
-      sw.addEventListener('input',()=>{ hex.value=sw.value; onColorChange('colors',k,sw.value); });
-      hex.addEventListener('input',()=>{ if(/^#[0-9a-fA-F]{6}$/.test(hex.value)){ sw.value=hex.value; onColorChange('colors',k,hex.value);} });
-    });
+    bindColorInputs(STATE.uiKeys, 'colors', 'ui', 'ui');
   } else if(currentPanel==='syntax'){
     p.innerHTML = `<h2>代码语法高亮</h2><div class="hint">代码块配色（One Dark / Catppuccin 风格）。</div>
       <div class="color-grid">${STATE.syntaxKeys.map(k=>colorItem(k, t.syntax[k], SYN_USAGE, 'syn')).join('')}</div>`;
-    STATE.syntaxKeys.forEach(k=>{
-      const sw=$('#syn-'+k), hex=$('[data-hex="'+k+'"]');
-      sw.addEventListener('input',()=>{ hex.value=sw.value; onColorChange('syntax',k,sw.value); });
-      hex.addEventListener('input',()=>{ if(/^#[0-9a-fA-F]{6}$/.test(hex.value)){ sw.value=hex.value; onColorChange('syntax',k,hex.value);} });
-    });
+    bindColorInputs(STATE.syntaxKeys, 'syntax', 'syn', 'syntax');
   } else if(currentPanel==='ansi'){
     p.innerHTML = `<h2>ANSI 8 色回退</h2><div class="hint">colorLevel=1 的低色深终端使用的 ANSI 命名色。</div>
       <div class="color-grid">${STATE.ansiKeys.map(k=>colorItem(k, t.ansi[k], ANSI_USAGE, 'ansi')).join('')}</div>`;
-    STATE.ansiKeys.forEach(k=>{
-      const sw=$('#ansi-'+k), hex=$('[data-hex="'+k+'"]');
-      sw.addEventListener('input',()=>{ hex.value=sw.value; onColorChange('ansi',k,sw.value); });
-      hex.addEventListener('input',()=>{ if(/^#[0-9a-fA-F]{6}$/.test(hex.value)){ sw.value=hex.value; onColorChange('ansi',k,hex.value);} });
-    });
+    bindColorInputs(STATE.ansiKeys, 'ansi', 'ansi', 'ansi');
   } else if(currentPanel==='plan'){
     p.innerHTML = `<h2>Plan 模式主题</h2><div class="hint">按 Shift+Tab 进入 Plan 模式时，自动切换到所选主题；退出恢复当前主题。</div>
       <div class="toolbar">
@@ -309,13 +610,13 @@ function renderPanel(){
           ${STATE.fonts.map(f=>`<option value="${esc(f.stack)}" data-name="${esc(f.name)}">${esc(f.name)}</option>`).join('')}
         </select>
       </div>
-      <h3 style="margin:14px 0 8px;font-size:13px">终端字体设置指引</h3>
-      <div style="background:#1a212e;border:1px solid #283245;border-radius:8px;padding:14px;font-size:12px;line-height:1.8;color:#b9c4d4">
+      <h3>终端字体设置指引</h3>
+      <div style="background:var(--bg-card);border:1px solid var(--border-strong);border-radius:8px;padding:14px;font-size:12px;line-height:1.8;color:var(--text-2)">
         <b>GNOME Terminal:</b> 首选项 → 配置文件 → 自定义字体<br>
         <b>Konsole:</b> 设置 → 编辑当前方案 → 外观 → 字体<br>
         <b>Windows Terminal:</b> 设置 → 配置文件 → 外观 → 字体<br>
         <b>VS Code 集成终端:</b> 设置 → terminal.integrated.fontFamily → 例如 <code style="color:var(--brand)">'JetBrains Mono', Consolas, monospace</code><br><br>
-        <span style="color:var(--muted)">推荐等宽字体：JetBrains Mono / Fira Code / Cascadia Code（含连字支持）</span>
+        <span style="color:var(--text-3)">推荐等宽字体：JetBrains Mono / Fira Code / Cascadia Code（含连字支持）</span>
       </div>`;
     const sel=$('#font-select');
     sel.value = localStorage.getItem('mcode-theme-font') || '';
@@ -326,6 +627,7 @@ function renderPanel(){
       renderPreview();
     });
   }
+  animatePanel(p);
 }
 
 function onColorChange(section, key, value){
@@ -346,7 +648,7 @@ function renderNav(){
 }
 
 function toast(msg, isErr){
-  const t=$('#toast'); t.textContent=msg; t.className='show'+(isErr?' err':''); setTimeout(()=>t.className='',2200);
+  const t=$('#toast'); t.textContent=msg; t.className='show'+(isErr?' err':''); setTimeout(()=>{ t.className='hide'+(isErr?' err':''); setTimeout(()=>t.className='',250); },2200);
 }
 
 async function init(){
@@ -357,6 +659,23 @@ async function init(){
     if(STATE.current) await loadTheme(STATE.current);
     else { STATE.activeTheme = {name:'(未应用)', appearance:'dark', colors:{...STATE.defaults.ui.dark}, ansi:{...STATE.defaults.ansi.dark}, syntax:{...STATE.defaults.syntax.dark}}; applyCSSVars(STATE.activeTheme); renderPreview(); }
     renderNav(); renderPanel();
+
+    // Header 主题快速切换（仅预览，不写盘）
+    const themeSel = $('#theme-select');
+    themeSel.innerHTML = STATE.themes.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    themeSel.value = STATE.current || '';
+    themeSel.addEventListener('change', async ()=>{
+      const v = themeSel.value;
+      if(!v) return;
+      try{ await loadTheme(v); }
+      catch(e){ toast(e.message, true); }
+    });
+
+    // 预览外观切换（仅预览区用 defaults light/dark 渲染）
+    $('#pv-appearance-btn').addEventListener('click', ()=>{
+      pvAppearance = pvAppearance==='live' ? 'dark' : (pvAppearance==='dark' ? 'light' : 'live');
+      renderPreview();
+    });
   }catch(e){ console.error('[mcode-theme] init failed:', e); toast('初始化失败: '+e.message, true); }
 
   $('#btn-apply').addEventListener('click', async ()=>{
@@ -385,6 +704,9 @@ async function init(){
       STATE.themes.push(name); STATE.themes.sort();
       toast('已保存主题: '+name);
       renderNav();
+      const themeSel = $('#theme-select');
+      themeSel.innerHTML = STATE.themes.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+      themeSel.value = name;
     }catch(e){ toast(e.message,true); }
   });
   document.addEventListener('keydown', e=>{
