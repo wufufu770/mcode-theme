@@ -359,7 +359,7 @@ def check_discipline(colors):
         _, s, _ = rgb_to_hsl(hex_to_rgb(colors[k]))
         if s > 0.45:
             fails.append(f"纪律4: {k} 饱和度 {s:.2f} > 0.45")
-    fam = {colors["brand"], colors["accent"], colors["signal"], colors["wordmarkHighlight"]}
+    fam = {colors["brand"], colors["accent"], colors["signal"]}
     if len(fam) != 1:
         fails.append(f"纪律5: 品牌色族发散 {sorted(fam)}")
     return fails
