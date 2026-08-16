@@ -31,6 +31,21 @@ mcode-theme web --port 9000    # 指定端口
 - **6 大自定义模块**（左侧导航）：UI 配色 / 代码语法高亮 / ANSI 8 色 / Plan 模式主题 / Logo / 字体
 - **调色盘**：每个颜色键有取色器 + HEX 输入，改动**实时预览**
 - **实时预览**：右侧模拟完整 mcode 界面（Logo/边框/状态栏/对话气泡/代码块/Plan 徽标/输入框）
+- **真实会话预览**：预览区头部「预览源」可切到 **真实** 模式——从
+  `~/.minimax/v2/sessions/` 只读列出最近会话（标题/时间/消息数），选择会话后按
+  真实 mcode 会话渲染消息（user 气泡 / assistant 文本 / thinking 弱化 / ``` 围栏
+  代码高亮），每 3s 轮询刷新（仅真实模式，切回模拟即停）；无 mcode 会话时自动回退模拟模式
+- **选中态模拟**：预览对话区下方有 skill 选择列表模拟块（第 2 项选中），选中项
+  前景 = accent、背景 = accent 12% 混合 + 左侧 2px 指示条 + 行尾 ✓，随主题即时变色
+  （与真实 TUI 选中态同色规则：真实 TUI 经 `me` 代理读取 signal/text 等主题键）
+- **主题包**：工具栏「导出主题包」下载
+  `{format:"mcode-theme-pack", version:1, exportedAt, name, appearance, colors, ansi, syntax, logo}`
+  （文件名 `<主题名>-<YYYYMMDD>.json`）；「导入主题包」校验 JSON 可解析 / format
+  匹配 / colors 15 键均为 #RRGGBB，通过则预览（不写盘），非法则 toast 报错中止
+- **自定义下拉**：主题切换 / Plan 主题 / 字体选择均为原生 DOM 自定义下拉
+  （零依赖）：点击展开（200ms 动画）、↑↓ 键盘导航 + Enter 确认 + Esc 收起、
+  hover=--bg-hover / selected=--brand-soft 底 + brand 前景 + 右对齐 ✓、
+  role=listbox/option + aria-selected
 - **应用到 mcode**：一键写回 cli.js（Ctrl+S 快捷键）
 - **保存主题**：把当前配色存为新主题，出现在列表里
 - 字体模块：调整预览字体 + 各终端字体设置指引
@@ -38,6 +53,20 @@ mcode-theme web --port 9000    # 指定端口
 ## 安装
 
 ### macOS / Linux
+
+方式一：一键安装脚本（推荐，幂等，无需 sudo）
+
+```bash
+bash install.sh                     # 默认安装到 ~/.local/bin
+bash install.sh --prefix ~/bin      # 自定义目录
+export PATH="$HOME/.local/bin:$PATH"   # 若 PATH 提示
+```
+
+脚本自动检测 python3 ≥ 3.8，复制 `mcode-theme` 与依赖（mcode_theme_lib.py /
+web.py / logo_styles.py / validate-themes.py / web/index.html）到目标目录
+（已存在文件备份为 `.old`），退出码 0=成功 / 1=失败 / 2=参数错误。
+
+方式二：手动
 
 ```bash
 # 放到 PATH（例如 ~/bin 或 /usr/local/bin）
@@ -72,8 +101,10 @@ Copy-Item mcode_theme_lib.py $bin
 
 ```bash
 mcode-theme create my-theme      # 生成主题模板（基于官方 dark 主题）
-mcode-theme install my-theme.json  # 安装并应用主题
+mcode-theme install my-theme.json  # 校验（9 条纪律）后安装主题，不自动应用
+mcode-theme install https://.../theme.json  # 在线主题包（同 9 条纪律校验，违规拒绝并输出明细）
 mcode-theme apply synthwave      # 应用已安装的主题（~/.minimax/themes/ 下）
+mcode-theme update               # 检测 mcode 升级：指纹一致→已是最新；变化→提示重新 apply
 mcode-theme list                 # 列出已安装主题
 mcode-theme current              # 显示当前主题
 mcode-theme plan                 # 交互式选择 Plan 模式主题
@@ -85,6 +116,10 @@ mcode-theme restore              # 恢复官方默认主题
 ```
 
 安装后重启 mcode 生效。
+
+> 说明：`install` 只做 9 条纪律校验 + 入库（不 patch cli.js），随后按提示
+> `mcode-theme apply <name>` 应用。`apply` 时记录 cli.js SHA256 指纹
+> （`~/.minimax/themes/.last-applied.json`），供 `update` 检测升级。
 
 ## Plan 模式主题（Shift+Tab 自动切换）
 
@@ -159,6 +194,16 @@ mcode-theme unplan               # 取消 Plan 主题（Plan 模式与正常模�
 | 结构 | vars（变量）+ colors（语义映射） | colors（15 键扁平，同 mcode 官方结构） |
 | 加载 | 运行时发现 + `--theme` 参数 | 启动前补丁替换（需重启） |
 | 终端适配 | auto/dark/light 自动 | 终端探测决定 dark/light，二选一替换 |
+
+## 选中态说明
+
+查证结论（docs/notes/selection-state.md）：mcode TUI 的列表/菜单选中项渲染全部经
+`me` 主题代理读取主题键（选中标记 `›`/`▌` = `signal`、加粗标签 = `text`、部分界面
+选中背景 = `userMessageBg`、问卷前缀 = `orbit`），**无硬编码色、无 ANSI reverse 选中
+渲染**；纪律 5 保证 brand==accent==signal，故选中标记色 = accent = brand，随主题
+变化。因此**无需 patch**：应用新主题后重启 mcode，选中项颜色即随主题变化。
+web 预览的选中态模拟块（F-14）采用 accent 前景 + accent 12% 混合底，
+与真实 TUI 的 signal==accent 语义一致。
 
 ## 注意事项
 
