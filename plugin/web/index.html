@@ -292,6 +292,46 @@ select:focus, input[type=text]:focus { outline:2px solid var(--brand); outline-o
   .panel-enter { animation:none; }
   * { transition-duration:0ms !important; animation-duration:0ms !important; }
 }
+/* ============ 纪律柱状图（F-08/F-09） ============ */
+.disc-card {
+  background:var(--bg-card); border:1px solid var(--border-strong); border-radius:var(--radius-lg);
+  padding:12px 14px; margin-bottom:16px; box-shadow:var(--shadow-card);
+}
+.disc-card .disc-title { font-size:12px; font-weight:600; color:var(--text-1); margin-bottom:2px; display:flex; align-items:center; gap:8px; }
+.disc-card .disc-sub { font-size:11px; color:var(--text-3); margin-bottom:10px; }
+.disc-groups { display:flex; gap:12px; flex-wrap:wrap; }
+.disc-group { flex:1; min-width:180px; }
+.disc-group .g-label { font-size:10px; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px; }
+.disc-bars { display:flex; align-items:flex-end; gap:6px; height:104px; position:relative; border-bottom:1px solid var(--border-weak); }
+.disc-ref { position:absolute; left:0; right:0; border-top:1px dashed var(--border-weak); pointer-events:none; }
+.disc-ref.r85 { bottom:85px; } .disc-ref.r60 { bottom:60px; } .disc-ref.r30 { bottom:30px; }
+.disc-bar-wrap { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; min-width:0; }
+.disc-bar {
+  width:100%; max-width:26px; min-height:2px; border:1px solid var(--border-weak); border-radius:2px 2px 0 0;
+  position:relative; transition:background-color 120ms var(--ease-out), box-shadow 120ms var(--ease-out);
+}
+.disc-bar.fail {
+  background:color-mix(in srgb, var(--error) 30%, transparent) !important;
+  box-shadow:0 0 0 1px var(--error);
+}
+.disc-bar.fail::after {
+  content:""; position:absolute; top:-4px; left:50%; transform:translateX(-50%);
+  width:8px; height:8px; border-radius:50%; background:var(--error);
+}
+.disc-bar-name { font-size:10px; color:var(--text-3); font-family:var(--font-mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.disc-bar:hover { box-shadow:0 0 6px color-mix(in srgb, var(--brand) 40%, transparent); }
+.disc-tip {
+  position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%);
+  background:var(--bg-raised); border:1px solid var(--border-strong); border-radius:var(--radius-md);
+  padding:5px 8px; font-size:11px; color:var(--text-1); white-space:nowrap; z-index:10;
+  opacity:0; pointer-events:none; transition:opacity 150ms var(--ease-out);
+  box-shadow:0 4px 12px rgba(0,0,0,0.4);
+}
+.disc-bar-wrap:hover .disc-tip { opacity:1; }
+@media (prefers-reduced-motion: reduce){
+  .disc-tip { transition:none; }
+  .disc-bar-wrap:hover .disc-tip { opacity:1; }
+}
 </style>
 </head>
 <body>
@@ -486,6 +526,99 @@ function renderPreview(){
   </div>`;
 }
 
+// ============ 纪律检查（F-08/F-09） ============
+function hexToRgb(h){ h=h.replace('#',''); return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)]; }
+function hslOf(h){
+  const [r,g,b] = hexToRgb(h).map(v=>v/255);
+  const mx=Math.max(r,g,b), mn=Math.min(r,g,b);
+  let hh=0, s=0; const l=(mx+mn)/2;
+  if(mx!==mn){ const d=mx-mn; s = l>0.5 ? d/(2-mx-mn) : d/(mx+mn); }
+  if(mx===r) hh = ((g-b)/ (mx-mn||1)) % 6;
+  else if(mx===g) hh = (b-r)/(mx-mn||1) + 2;
+  else hh = (r-g)/(mx-mn||1) + 4;
+  return { h: ((hh*60)+360)%360, s, l };
+}
+function lumOf(h){
+  const [r,g,b] = hexToRgb(h).map(v=>v/255);
+  const lin = [r,g,b].map(v=>Math.pow(v, 2.2));
+  return 0.2126*lin[0] + 0.7152*lin[1] + 0.0722*lin[2];
+}
+// 纪律检查：返回 {fails:[string]}，同 validate-themes.py 规格（亮色主题放宽纪律1）
+function checkDiscipline(colors, isLight){
+  const fails = [];
+  const L = k => colors[k] && /^#[0-9a-fA-F]{6}$/.test(colors[k]) ? lumOf(colors[k]) : -1;
+  // 纪律1: 亮度全序（亮色主题反序）
+  if(!isLight){
+    for(const [a,b] of [['dim','muted'],['muted','text']])
+      if(!(L(a) < L(b))) fails.push(`纪律1: 亮度序 ${a}(${L(a).toFixed(2)}) → ${b}(${L(b).toFixed(2)})`);
+    for(const [a,b] of [['userMessageBg','border'],['border','line']])
+      if(!(L(a) < L(b))) fails.push(`纪律1: 亮度序 ${a}(${L(a).toFixed(2)}) → ${b}(${L(b).toFixed(2)})`);
+  } else {
+    for(const [a,b] of [['text','muted'],['muted','dim']])
+      if(!(L(a) < L(b))) fails.push(`纪律1: 亮度序 ${a}(${L(a).toFixed(2)}) → ${b}(${L(b).toFixed(2)})`);
+    for(const [a,b] of [['line','border'],['border','userMessageBg']])
+      if(!(L(a) < L(b))) fails.push(`纪律1: 亮度序 ${a}(${L(a).toFixed(2)}) → ${b}(${L(b).toFixed(2)})`);
+  }
+  // 纪律2: text/muted/dim 差 ≥0.10
+  for(const [a,b] of [['text','muted'],['text','dim'],['muted','dim']])
+    if(Math.abs(L(a)-L(b)) < 0.10) fails.push(`纪律2: ${a}/${b} 亮度差 ${Math.abs(L(a)-L(b)).toFixed(2)} < 0.10`);
+  // 纪律3: umbg/border/line 色相偏差 ≤25°
+  const hues = ['userMessageBg','border','line'].map(k=>hslOf(colors[k]).h);
+  for(let i=0;i<3;i++) for(let j=i+1;j<3;j++){
+    let d = Math.abs(hues[i]-hues[j]); d = Math.min(d, 360-d);
+    if(d > 25) fails.push(`纪律3: 色相偏差 ${d.toFixed(0)}°`);
+  }
+  // 纪律4: 结构色饱和 ≤0.45（近白/近黑豁免）
+  for(const k of ['userMessageBg','border','line','muted','dim']){
+    const lv = L(k);
+    if(lv > 0.85 || lv < 0.05) continue;
+    if(hslOf(colors[k]).s > 0.45) fails.push(`纪律4: ${k} 饱和度 ${hslOf(colors[k]).s.toFixed(2)} > 0.45`);
+  }
+  // 纪律5: 品牌色族相等
+  const fam = new Set([colors.brand, colors.accent, colors.signal, colors.wordmarkHighlight]);
+  if(fam.size !== 1) fails.push('纪律5: 品牌色族发散');
+  return fails;
+}
+// 柱状图渲染：结构色组 + 强调组 + 语义组
+function renderDiscipline(colors){
+  const groups = [
+    { label:'结构色', keys:['userMessageBg','border','line','text','muted','dim'] },
+    { label:'强调色', keys:['brand','accent','signal','orbit'] },
+    { label:'语义色', keys:['success','warning','error'] },
+  ];
+  const isLight = STATE && STATE.activeTheme && STATE.activeTheme.appearance === 'light';
+  const fails = checkDiscipline(colors, isLight);
+  const failSet = new Set();
+  fails.forEach(f=>{
+    const m = f.match(/(?:[\u4e00-\u9fa5]|\b)(\w+)\(/);
+    if(m && m[1]) failSet.add(m[1]);
+  });
+  const html = groups.map(g=>`
+    <div class="disc-group">
+      <div class="g-label">${g.label}</div>
+      <div class="disc-bars">
+        <div class="disc-ref r85"></div><div class="disc-ref r60"></div><div class="disc-ref r30"></div>
+        ${g.keys.map(k=>{
+          const v = colors[k] || '#000000';
+          const lv = lumOf(v);
+          const h = Math.max(2, Math.min(100, lv*100));
+          const fail = failSet.has(k);
+          const tipLines = fails.filter(f=>f.includes(k));
+          return `<div class="disc-bar-wrap">
+            <div class="disc-bar fail" style="height:${h}px;background:${v}"></div>
+            <div class="disc-bar-name">${k}</div>
+            ${tipLines.length ? `<div class="disc-tip">${k} L=${lv.toFixed(2)}<br>${tipLines.join('<br>')}</div>` : ''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`).join('');
+  return `<div class="disc-card">
+    <div class="disc-title">颜色纪律检查 <span style="font-size:10px;color:${fails.length?'var(--error)':'var(--success)'}">${fails.length?'✗ '+fails.length+' 项违反':'✓ 全部通过'}</span></div>
+    <div class="disc-sub">柱高 = 相对亮度；结构色组参考线 L=0.30/0.60/0.85。违反纪律的柱子标红。</div>
+    <div class="disc-groups">${html}</div>
+  </div>`;
+}
+
 // 增强颜色卡：重置按钮 + 对比度徽标（附加渲染，不改原结构）
 function colorItem(key, val, usage, prefix){
   const dflt = STATE && STATE.defaults ? (STATE.defaults[prefix==='syn'?'syntax':(prefix==='ansi'?'ansi':'ui')] || {}) : {};
@@ -571,6 +704,7 @@ function renderPanel(){
   const t = STATE.activeTheme || {colors:{},ansi:{},syntax:{}};
   if(currentPanel==='ui'){
     p.innerHTML = `<h2>UI 配色</h2><div class="hint">调整 mcode 界面主色调，右侧实时预览。</div>
+      <div id="disc-card">${renderDiscipline(t.colors)}</div>
       <div class="color-grid">${STATE.uiKeys.map(k=>colorItem(k, t.colors[k], USAGE, 'ui')).join('')}</div>`;
     bindColorInputs(STATE.uiKeys, 'colors', 'ui', 'ui');
   } else if(currentPanel==='syntax'){
@@ -636,6 +770,9 @@ function onColorChange(section, key, value){
   t[section][key]=value;
   applyCSSVars(t);
   renderPreview();
+  // F-08: UI 面板实时重算纪律柱状图（仅 15 色亮度计算，<1ms）
+  const disc = $('#disc-card');
+  if(disc) disc.innerHTML = renderDiscipline(t.colors);
 }
 
 function renderNav(){
