@@ -197,22 +197,21 @@ mcode 启动 Logo 使用**三段垂直渐变**（顶→中→底）：
 | high-impact | 紫→粉→橙 |
 | nord | 青→蓝→靛 |
 
-### 主题清单与来源（MIT 署名）
+### 主题清单（50 个）
 
-| 来源 | 数量 | 主题 |
+| 分组 | 数量 | 主题 |
 |---|---|---|
-| mcode 内置（保留） | 21 | catppuccin-mocha、cyberpunk、deepseek、dracula、ember、emerald、everforest-dark、github-dark、gruvbox-dark、material-palenight、minimax-light、minimax-official、monokai-pro、monokai、nord、one-dark、rose-pine、solarized-dark、synthwave、tokyo-night、violet |
-| opencode 内置（anomalyco/opencode, MIT） | 21 | aura、ayu、carbonfox、catppuccin-frappe、catppuccin-macchiato、cobalt2、cursor、flexoki、kanagawa、lucent-orng、material、matrix、mercury、nightowl、opencode、orng、osaka-jade、palenight、vercel、vesper、zenburn |
-| catppuccin/opencode 官方 port（MIT） | 4 | catppuccin-latte-mauve、catppuccin-latte-blue、catppuccin-macchiato-peach、catppuccin-frappe-green |
-| 社区（brunogabriel/opencode-moonlight-theme 等, MIT） | 4 | moonlight、synthwave-light、ayu-light、zenburn-light |
+| 经典主题（保留） | 21 | catppuccin-mocha、cyberpunk、deepseek、dracula、ember、emerald、everforest-dark、github-dark、gruvbox-dark、material-palenight、minimax-light、minimax-official、monokai-pro、monokai、nord、one-dark、rose-pine、solarized-dark、synthwave、tokyo-night、violet |
+| 社区流行主题 | 21 | aura、ayu、carbonfox、catppuccin-frappe、catppuccin-macchiato、cobalt2、cursor、flexoki、kanagawa、lucent-orng、material、matrix、mercury、nightowl、opencode、orng、osaka-jade、palenight、vercel、vesper、zenburn |
+| Catppuccin 变体 | 4 | catppuccin-latte-mauve、catppuccin-latte-blue、catppuccin-macchiato-peach、catppuccin-frappe-green |
+| 亮色变体 | 4 | moonlight、synthwave-light、ayu-light、zenburn-light |
 
-opencode 主题经 `import-opencode.py` 转换（opencode.ai/theme.json → mcode 15 键），
-pi 生态主题经 `import-pi.py` 转换。全部 50 个通过 validate-themes.py 9 条纪律。
+全部 50 个通过 validate-themes.py 9 条纪律校验。
 
 ### 转换器
 
 ```bash
-python3 import-opencode.py 主题.json --name X --out ~/.minimax/themes   # opencode → mcode
+python3 import-opencode.py 主题.json --name X --out ~/.minimax/themes   # 通用主题 → mcode
 python3 import-opencode.py --all --out ~/.minimax/themes                # 批量
 python3 import-pi.py pi主题.json --out ~/.minimax/themes                # pi → mcode
 python3 validate-themes.py [目录]                                       # 纪律校验
