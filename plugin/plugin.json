@@ -1,12 +1,12 @@
 {
-  "name": "minimax-code-themes",
+  "name": "mcode-theme",
   "description": "MiniMax Code CLI 主题管理插件 - 21 个内置主题 + Plan 模式主题联动 + 主题管理工具",
   "version": "1.0.0",
   "author": {
     "name": "MiniMax Code Community"
   },
-  "homepage": "https://github.com/wufufu770/minimax-code-themes",
-  "repository": "https://github.com/wufufu770/minimax-code-themes",
+  "homepage": "https://github.com/MiniMax-AI",
+  "repository": "https://github.com/MiniMax-AI",
   "license": "MIT",
   "keywords": [
     "themes",
