@@ -40,14 +40,6 @@ mcode-theme web                # Web 可视化配置器 → http://localhost:859
 > 说明：`install` 校验后入库（不自动应用），随后 `apply` 生效。`apply` 记录
 > cli.js 指纹（`~/.minimax/themes/.last-applied.json`），供 `update` 检测升级。
 
-### 换主题速度
-
-| 模式 | 耗时（本机） | 说明 |
-|---|---|---|
-| 内容一致秒回 | ~0.7s | 目标内容与当前 cli.js 一致 → 不写盘 |
-| 缓存重放 | ~1.2s | 切回此前应用过的主题，直接写回缓存 |
-| 新主题 apply | ~2.3s | 完整 patch |
-
 ## Web 配置器
 
 - 6 大模块：UI 配色 / 代码语法高亮 / ANSI 8 色 / Plan 模式主题 / Logo / 字体
