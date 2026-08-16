@@ -1,12 +1,12 @@
 {
-  "name": "minimax-code-themes",
+  "name": "mcode-theme",
   "description": "MiniMax Code CLI 主题管理插件 - 21 个内置主题 + Plan 模式主题联动",
   "owner": {
     "name": "MiniMax Code Community"
   },
   "plugins": [
     {
-      "name": "minimax-code-themes",
+      "name": "mcode-theme",
       "description": "MiniMax Code CLI 主题管理：安装/切换/Plan 联动/随机主题",
       "version": "1.0.0",
       "source": "./",
