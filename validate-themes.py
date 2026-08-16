@@ -114,14 +114,13 @@ def check_theme(theme):
         if len(fam) != 1:
             fails.append(f"纪律5: 品牌色族发散 {sorted(fam)}")
 
-    if not fails:
-        # 纪律 6-9: 三段渐变区分度（F-02 R1-R4）
-        try:
-            from logo_styles import check_gradient as _cg
-            gv = _cg(c, c.get("userMessageBg"))
-            fails.extend(gv)
-        except Exception as e:
-            fails.append(f"纪律6-9: 渐变检查异常 {e}")
+    # 纪律 6-9: 三段渐变区分度（F-02 R1-R4）——无条件执行，即使纪律 1-5 有 FAIL
+    try:
+        from logo_styles import check_gradient as _cg
+        gv = _cg(c, c.get("userMessageBg"))
+        fails.extend(gv)
+    except Exception as e:
+        fails.append(f"纪律6-9: 渐变检查异常 {e}")
     return warns, fails
 
 
