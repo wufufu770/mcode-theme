@@ -14,6 +14,9 @@ import json
 import os
 import sys
 
+from logo_styles import (STYLES, match_style, derive_shadow, derive_top,
+                         check_gradient, hex_to_rgb, rgb_to_hsl)
+
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "themes")
 os.makedirs(OUT, exist_ok=True)
 
@@ -227,10 +230,11 @@ def build(name, pal):
     c = {}
     bg, fg = pal["bg"], pal["fg"]
     accent = pal["accent"]
+    style = match_style(accent)
 
     c["brand"] = accent
-    c["wordmarkHighlight"] = accent
-    c["wordmarkShadow"] = derive_bg_tint(bg, 1.0, -0.10)
+    c["wordmarkHighlight"] = derive_top(accent, bg)
+    c["wordmarkShadow"] = derive_shadow(accent, style)
     c["signal"] = accent
     c["orbit"] = pal["orbit"]
     c["accent"] = accent
@@ -267,6 +271,7 @@ def build(name, pal):
         "ansi": DEFAULT_ANSI,
         "syntax": syn,
         "logo": accent,
+        "logoStyle": style,
     }
 
 
@@ -317,8 +322,8 @@ def check_discipline(name, theme):
         if s > 0.45:
             violations.append(f"纪律4: {k} 饱和度 {s:.2f} > 0.45")
 
-    # 纪律 5: brand/accent/signal/wordmarkHighlight 完全相等
-    fam = {c["brand"], c["accent"], c["signal"], c["wordmarkHighlight"]}
+    # 纪律 5: brand/accent/signal 完全相等（wordmarkHighlight 是渐变顶，允许提亮）
+    fam = {c["brand"], c["accent"], c["signal"]}
     if len(fam) != 1:
         violations.append(f"纪律5: 品牌色族发散 {sorted(fam)}")
 
@@ -330,6 +335,7 @@ def main():
     for name, pal in THEMES.items():
         theme = build(name, pal)
         v = check_discipline(name, theme)
+        v += check_gradient(theme["colors"], pal["bg"])
         if v:
             failed = True
             for msg in v:
