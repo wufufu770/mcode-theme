@@ -208,6 +208,19 @@ select:focus, input[type=text]:focus { outline:2px solid var(--brand); outline-o
 .pv-top { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--line); }
 .pv-logo { display:flex; align-items:center; gap:8px; }
 .pv-logo svg { width:26px; height:26px; border-radius:var(--radius-md); }
+
+/* ============ F-08 颜色→应用点高亮 ============ */
+.hl-target {
+  outline:2px solid var(--brand) !important;
+  outline-offset:2px;
+  box-shadow:0 0 10px color-mix(in srgb, var(--brand) 35%, transparent) !important;
+  border-radius:3px;
+  transition:outline 150ms ease-out, box-shadow 150ms ease-out;
+}
+.hl-fade { transition:outline 200ms ease-out, box-shadow 200ms ease-out; outline:2px solid transparent; }
+@media (prefers-reduced-motion: reduce){
+  .hl-target, .hl-fade { transition:none; }
+}
 .pv-name { font-weight:800; font-size:14px; letter-spacing:.5px; }
 .pv-name .a { color:var(--hl); text-shadow:0 0 6px var(--brand); }
 .pv-name .b { color:var(--brand); text-shadow:0 0 6px var(--shadow); }
@@ -492,7 +505,15 @@ function renderPreview(){
     <div class="pv-app" ${localVars}>
     <div class="pv-top">
       <div class="pv-logo">
-        <svg viewBox="0 0 80 80"><rect width="80" height="80" rx="18" fill="var(--brand)"/><text x="40" y="52" font-size="40" font-weight="900" text-anchor="middle" fill="#0a121c" font-family="Arial">M</text></svg>
+        <svg viewBox="0 0 80 80">
+          <defs><linearGradient id="pv-logo-grad" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stop-color="var(--shadow)"/>
+            <stop offset="50%" stop-color="var(--brand)"/>
+            <stop offset="100%" stop-color="var(--hl)"/>
+          </linearGradient></defs>
+          <rect width="80" height="80" rx="18" fill="url(#pv-logo-grad)"/>
+          <text x="40" y="52" font-size="40" font-weight="900" text-anchor="middle" fill="#0a121c" font-family="Arial">M</text>
+        </svg>
         <span class="pv-name"><span class="a">MiniMax</span><span class="b"> Code</span></span>
       </div>
       <div class="status"><span class="dot"></span><span style="color:var(--signal)">Ready</span><span style="color:var(--muted)">✦ MiniMax-M3</span></div>
@@ -619,6 +640,43 @@ function renderDiscipline(colors){
   </div>`;
 }
 
+// ============ F-08 颜色→应用点映射 ============
+const HL_MAP = {
+  brand:['.pv-logo','.pv-name .b','.pv-top .dot','#btn-apply'],
+  wordmarkHighlight:['#pv-logo-grad stop[offset="100%"]'],
+  wordmarkShadow:['#pv-logo-grad stop[offset="0%"]'],
+  accent:['.pv-foot .plan-badge'],
+  signal:['.pv-top .dot'],
+  orbit:[],
+  userMessageBg:['.pv-user'],
+  text:['.pv-ai','.pv-input'],
+  muted:['.pv-user .tag','.pv-ai .muted','.pv-foot .perm'],
+  dim:['.pv-border-hint','.pv-foot'],
+  border:['.pv-app'],
+  line:['.pv-top','.pv-foot'],
+  success:['.pv-alert.success'],
+  warning:['.pv-alert.warning'],
+  error:['.pv-alert.error'],
+};
+let hlTimer = null;
+function highlightTargets(key){
+  const sel = HL_MAP[key] || [];
+  clearAllHighlights();
+  if(!sel.length) return;
+  const els = sel.map(s=>document.querySelector(s)).filter(Boolean);
+  els.forEach(el=>{
+    el.classList.add('hl-target');
+    el.dataset.hlKey = key;
+  });
+  clearTimeout(hlTimer);
+  hlTimer = setTimeout(()=>{
+    els.forEach(el=>{ el.classList.remove('hl-target'); el.classList.add('hl-fade'); setTimeout(()=>el.classList.remove('hl-fade'),200); });
+  }, 200);
+}
+function clearAllHighlights(){
+  document.querySelectorAll('.hl-target').forEach(el=>el.classList.remove('hl-target'));
+}
+
 // 增强颜色卡：重置按钮 + 对比度徽标（附加渲染，不改原结构）
 function colorItem(key, val, usage, prefix){
   const dflt = STATE && STATE.defaults ? (STATE.defaults[prefix==='syn'?'syntax':(prefix==='ansi'?'ansi':'ui')] || {}) : {};
@@ -701,6 +759,7 @@ function bindColorInputs(keys, section, prefix, defSection){
 
 function renderPanel(){
   const p = $('#panel');
+  clearAllHighlights();
   const t = STATE.activeTheme || {colors:{},ansi:{},syntax:{}};
   if(currentPanel==='ui'){
     p.innerHTML = `<h2>UI 配色</h2><div class="hint">调整 mcode 界面主色调，右侧实时预览。</div>
@@ -770,6 +829,8 @@ function onColorChange(section, key, value){
   t[section][key]=value;
   applyCSSVars(t);
   renderPreview();
+  // F-08: 编辑任一颜色 → 高亮对应应用点
+  if(section === 'colors') highlightTargets(key);
   // F-08: UI 面板实时重算纪律柱状图（仅 15 色亮度计算，<1ms）
   const disc = $('#disc-card');
   if(disc) disc.innerHTML = renderDiscipline(t.colors);
