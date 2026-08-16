@@ -198,6 +198,143 @@ class ThemeServer(BaseHTTPRequestHandler):
             return
         self._ok({"ok": True})
 
+    # ---------- F-12 真实会话预览（只读端点） ----------
+    SESSIONS_ROOT = os.path.join(mcode_theme_lib._mcode_data_dir(), "v2", "sessions")
+
+    def _api_session_list(self):
+        """纯只读：rglob ~/.minimax/v2/sessions/ 下 messages.jsonl，
+        标题读 manifest.json（无则 "(untitled)"），按 updatedAtMs 倒序 ≤20。
+        MUST NOT 打开 sqlite（mcode 可能运行中写入）。"""
+        import hashlib
+        root = self.SESSIONS_ROOT
+        items = []
+        if os.path.isdir(root):
+            for dirpath, _, filenames in os.walk(root):
+                if "messages.jsonl" not in filenames:
+                    continue
+                try:
+                    size = os.path.getsize(os.path.join(dirpath, "messages.jsonl"))
+                except OSError:
+                    continue
+                if size <= 0:  # 跳过空文件
+                    continue
+                sid = os.path.basename(dirpath)
+                updated = None
+                manifest_path = os.path.join(dirpath, "manifest.json")
+                if os.path.isfile(manifest_path):
+                    try:
+                        with open(manifest_path, "r", encoding="utf-8") as f:
+                            mf = json.load(f)
+                        if isinstance(mf, dict):
+                            title = mf.get("title")
+                            updated = mf.get("updatedAtMs")
+                    except (json.JSONDecodeError, OSError):
+                        mf = {}
+                else:
+                    mf = {}
+                title = (mf.get("title") if isinstance(mf, dict) and mf.get("title")
+                         else "(untitled)")
+                # messageCount 与校验：逐行解析失败即视为损坏跳过
+                count = 0
+                try:
+                    with open(os.path.join(dirpath, "messages.jsonl"),
+                              "r", encoding="utf-8") as f:
+                        for line in f:
+                            if not line.strip():
+                                continue
+                            try:
+                                json.loads(line)
+                            except json.JSONDecodeError:
+                                break  # 损坏文件，整目录跳过
+                            count += 1
+                except OSError:
+                    continue
+                if count == 0:
+                    continue
+                if updated is None:
+                    try:
+                        updated = os.path.getmtime(
+                            os.path.join(dirpath, "messages.jsonl")) * 1000
+                    except OSError:
+                        updated = 0
+                items.append({
+                    "id": sid,
+                    "title": title,
+                    "updatedAtMs": updated,
+                    "messageCount": count,
+                })
+        items.sort(key=lambda x: x["updatedAtMs"], reverse=True)
+        return items[:20]
+
+    def _api_session_messages(self, sid):
+        """读取单个会话 messages.jsonl（≤50 条、单条 ≤2000 字符截断）。
+        失败返回 {error} 400。"""
+        if not re.match(r"^[\w.-]+$", sid or ""):
+            self._err("invalid session id")
+            return
+        root = self.SESSIONS_ROOT
+        found = None
+        if os.path.isdir(root):
+            for dirpath, _, filenames in os.walk(root):
+                if os.path.basename(dirpath) == sid and "messages.jsonl" in filenames:
+                    found = dirpath
+                    break
+        if not found:
+            self._err(f"session '{sid}' not found")
+            return
+        msgs = []
+        try:
+            with open(os.path.join(found, "messages.jsonl"),
+                      "r", encoding="utf-8") as f:
+                for line in f:
+                    if not line.strip():
+                        continue
+                    try:
+                        rec = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    msg = rec.get("message") or {}
+                    role = msg.get("role")
+                    if role not in ("user", "assistant"):
+                        continue
+                    contents = msg.get("content")
+                    if not isinstance(contents, list):
+                        continue
+                    for part in contents:
+                        if not isinstance(part, dict):
+                            continue
+                        ptype = part.get("type")
+                        if ptype not in ("text", "thinking"):
+                            continue
+                        text = part.get("text")
+                        if not isinstance(text, str) or not text.strip():
+                            continue
+                        text = text.strip()
+                        if len(text) > 2000:
+                            text = text[:2000] + "…（已截断）"
+                        msgs.append({"role": role, "type": ptype, "text": text})
+                        if len(msgs) >= 50:
+                            break
+                    if len(msgs) >= 50:
+                        break
+        except OSError as e:
+            self._err(f"read failed: {e}")
+            return
+        if not msgs:
+            self._err("session has no readable text messages")
+            return
+        title = "(untitled)"
+        manifest_path = os.path.join(found, "manifest.json")
+        if os.path.isfile(manifest_path):
+            try:
+                with open(manifest_path, "r", encoding="utf-8") as f:
+                    mf = json.load(f)
+                if isinstance(mf, dict) and mf.get("title"):
+                    title = mf["title"]
+            except (json.JSONDecodeError, OSError):
+                pass
+        self._ok({"id": sid, "title": title, "messages": msgs})
+
     # ---------- routing ----------
     def do_GET(self):
         url = urlparse(self.path)
@@ -210,6 +347,11 @@ class ThemeServer(BaseHTTPRequestHandler):
             return
         if url.path == "/api/state":
             return self._ok(self._api_state())
+        if url.path == "/api/session/list":
+            return self._ok(self._api_session_list())
+        m = re.match(r"^/api/session/([^/]+)/messages$", url.path)
+        if m:
+            return self._api_session_messages(m.group(1))
         m = re.match(r"^/api/theme/([^/]+)$", url.path)
         if m:
             return self._api_theme(m.group(1))

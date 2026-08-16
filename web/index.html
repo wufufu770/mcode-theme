@@ -255,6 +255,69 @@ select:focus, input[type=text]:focus { outline:2px solid var(--brand); outline-o
 .pv-alert.warning { background:color-mix(in srgb, var(--warning) 14%, transparent); color:var(--warning); border:1px solid var(--warning); }
 .pv-alert.error { background:color-mix(in srgb, var(--error) 14%, transparent); color:var(--error); border:1px solid var(--error); }
 
+/* ============ F-12 真实会话预览 ============ */
+.pv-src { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.pv-src-seg { display:flex; border:1px solid var(--border-strong); border-radius:var(--radius-sm); overflow:hidden; }
+.pv-src-seg button {
+  background:var(--bg-input); border:none; color:var(--text-2); font-family:var(--font-sans);
+  font-size:11px; padding:2px 8px; cursor:pointer;
+}
+.pv-src-seg button.on { background:var(--brand-soft); color:var(--brand); font-weight:700; }
+.pv-src-select { min-width:120px; max-width:170px; }
+.pv-src-refresh { background:var(--bg-hover); border:1px solid var(--border-strong); color:var(--text-2);
+  border-radius:var(--radius-sm); padding:2px 8px; font-size:11px; cursor:pointer; font-family:var(--font-sans); }
+.pv-src-refresh:hover { filter:brightness(1.15); color:var(--text-1); }
+.pv-src-refresh:disabled { opacity:.5; cursor:not-allowed; }
+.pv-src-note { font-size:10px; color:var(--text-3); }
+.pv-thinking { color:var(--muted); font-style:italic; }
+.pv-thinking .pv-th-tag { font-size:9px; color:var(--dim); }
+.pv-real-err { color:var(--warning); font-size:11px; padding:6px 0; }
+.pv-code pre { margin:0; white-space:pre-wrap; font-family:var(--font-mono); }
+.pv-ai .muted { color:var(--muted); }
+
+/* ============ F-14 选中态模拟块（skill 选择） ============ */
+.pv-sel { margin:10px 0 8px; border:1px solid var(--border); border-radius:var(--radius-md); overflow:hidden; background:var(--bg-input); }
+.pv-sel-item {
+  position:relative; padding:6px 26px 6px 14px; font-size:11px; color:var(--text);
+  border-left:2px solid transparent; line-height:1.5; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  transition:background-color 100ms ease-out, color 100ms ease-out;
+}
+.pv-sel-item + .pv-sel-item { border-top:1px solid var(--line); }
+.pv-sel-item.selected {
+  background:color-mix(in srgb, var(--accent) 12%, transparent);
+  color:var(--accent); border-left:2px solid var(--accent); font-weight:700;
+}
+.pv-sel-check { position:absolute; right:9px; top:50%; transform:translateY(-50%); color:var(--accent); font-weight:900; }
+
+/* ============ F-15 自定义下拉（原生 DOM，零依赖） ============ */
+.c-drop { position:relative; display:inline-block; }
+.c-drop-trigger {
+  display:flex; align-items:center; gap:6px; max-width:200px;
+  background:var(--bg-input); color:var(--text-1); border:1px solid var(--border-strong);
+  border-radius:var(--radius-sm); padding:6px 8px; font-size:12px; font-family:var(--font-sans);
+  cursor:pointer; text-align:left;
+}
+.c-drop-trigger:focus-visible { outline:2px solid var(--brand); outline-offset:1px; }
+.c-drop-value { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.c-drop-caret { color:var(--text-3); font-size:9px; transition:transform 200ms cubic-bezier(0.4,0,0.2,1); }
+.c-drop.open .c-drop-caret { transform:rotate(180deg); }
+.c-drop-menu {
+  position:absolute; top:calc(100% + 4px); left:0; min-width:100%; z-index:50;
+  background:var(--bg-raised); border:1px solid var(--border-strong); border-radius:var(--radius-md);
+  list-style:none; padding:4px; margin:0; box-shadow:0 6px 18px rgba(0,0,0,.45);
+  max-height:260px; overflow-y:auto;
+  opacity:0; transform:translateY(-4px); pointer-events:none;
+  transition:opacity 200ms cubic-bezier(0.4,0,0.2,1), transform 200ms cubic-bezier(0.4,0,0.2,1);
+}
+.c-drop.open .c-drop-menu { opacity:1; transform:translateY(0); pointer-events:auto; }
+.c-drop-menu li {
+  position:relative; padding:6px 26px 6px 10px; font-size:12px; color:var(--text-2);
+  border-radius:var(--radius-sm); cursor:pointer; white-space:nowrap;
+}
+.c-drop-menu li:hover, .c-drop-menu li.hover { background:var(--bg-hover); color:var(--text-1); }
+.c-drop-menu li.sel { background:var(--brand-soft); color:var(--brand); font-weight:700; }
+.c-drop-menu li .ck { position:absolute; right:8px; top:50%; transform:translateY(-50%); font-weight:900; }
+
 /* ============ Toast ============ */
 #toast {
   position:fixed; bottom:22px; left:50%; transform:translateX(-50%);
@@ -362,7 +425,10 @@ select:focus, input[type=text]:focus { outline:2px solid var(--brand); outline-o
   <span class="badge" id="badge-theme">主题: -</span>
   <span class="badge" id="badge-plan">Plan: -</span>
   <div class="header-actions">
-    <select id="theme-select" title="快速切换主题（仅预览，不写盘）"></select>
+    <button class="btn ghost" id="btn-export" title="导出当前配色为主题包 JSON">导出主题包</button>
+    <button class="btn ghost" id="btn-import" title="从主题包 JSON 导入预览（不写盘）">导入主题包</button>
+    <input type="file" id="import-file" accept=".json,application/json" style="display:none">
+    <div class="c-drop" id="theme-drop" data-cdrop title="快速切换主题（仅预览，不写盘）"></div>
     <button class="btn" id="btn-save" title="将当前配色保存为新主题">保存主题</button>
     <button class="btn ghost" id="btn-restore">恢复官方</button>
     <button class="btn primary" id="btn-apply">应用到 mcode</button>
@@ -377,7 +443,17 @@ select:focus, input[type=text]:focus { outline:2px solid var(--brand); outline-o
     <div id="preview-wrap">
       <div class="pv-head">
         <span>实时预览（模拟 mcode 界面）</span>
-        <span style="display:flex;align-items:center;gap:8px">
+        <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+          <span class="pv-src" id="pv-src">
+            <span class="pv-src-seg" role="group" aria-label="预览源">
+              <button id="pv-src-sim" class="on" type="button">模拟</button>
+              <button id="pv-src-real" type="button">真实</button>
+            </span>
+            <span id="pv-src-controls" style="display:none;align-items:center;gap:6px">
+              <div class="c-drop pv-src-select" id="session-drop" data-cdrop></div>
+              <button class="pv-src-refresh" id="pv-src-refresh" type="button" title="刷新会话列表">↻</button>
+            </span>
+          </span>
           <button class="pv-appearance-btn" id="pv-appearance-btn" title="切换预览外观">🌙 暗</button>
           <span id="pv-font-label">字体: 系统</span>
         </span>
@@ -394,6 +470,7 @@ const $ = s => document.querySelector(s);
 let STATE = null;
 let currentPanel = 'ui';
 let dirty = {};   // { 'colors.brand': '#xxxxxx' }
+let themeDrop = null;
 // 预览外观：'live' 跟随当前编辑 | 'dark' | 'light'（仅影响预览区，用 defaults 渲染）
 let pvAppearance = 'live';
 const USAGE = {
@@ -500,7 +577,7 @@ function renderPreview(){
   <div class="pv-shell">
     <div class="pv-shell-bar">
       <span class="pv-shell-dots"><i></i><i></i><i></i></span>
-      <span class="pv-shell-title">mcode — 实时预览${pvAppearance!=='live' ? ' · ' + apprLabel : ''}</span>
+      <span class="pv-shell-title">mcode — ${pvSource==='real' ? '真实会话预览' : '实时预览'}${pvAppearance!=='live' ? ' · ' + apprLabel : ''}</span>
     </div>
     <div class="pv-app" ${localVars}>
     <div class="pv-top">
@@ -519,6 +596,7 @@ function renderPreview(){
       <div class="status"><span class="dot"></span><span style="color:var(--signal)">Ready</span><span style="color:var(--muted)">✦ MiniMax-M3</span></div>
     </div>
     <div class="pv-body">
+      ${pvSource==='real' ? renderRealBody() : `
       <div class="pv-border-hint">border: var(--border) · line: var(--line)</div>
       <div class="pv-alert success">✓ 已添加 · success 色</div>
       <div class="pv-alert warning">⚠ 学号已存在 · warning 色</div>
@@ -535,7 +613,8 @@ function renderPreview(){
         &nbsp;&nbsp;<span class="s">"""计算平均分"""</span><br>
         &nbsp;&nbsp;<span class="k">return</span> <span class="f">sum</span>(scores) / <span class="f">len</span>(scores)
       </div>
-      <div class="pv-ai">搞定 ✅ <span class="succ">5 个测试全过</span></div>
+      <div class="pv-ai">搞定 ✅ <span class="succ">5 个测试全过</span></div>`}
+      ${renderSelBlock()}
     </div>
     <div class="pv-foot">
       <span class="plan-badge">PLAN</span>
@@ -712,8 +791,7 @@ async function loadTheme(name){
   renderPreview();
   renderPanel();
   $('#badge-theme').textContent = '主题: ' + t.name + (t.appearance==='light'?' (亮)':'');
-  const sel = $('#theme-select');
-  if(sel && sel.value !== name) sel.value = name;
+  if(themeDrop) themeDrop.value = name;
 }
 
 function currentThemeObj(){
@@ -777,16 +855,19 @@ function renderPanel(){
   } else if(currentPanel==='plan'){
     p.innerHTML = `<h2>Plan 模式主题</h2><div class="hint">按 Shift+Tab 进入 Plan 模式时，自动切换到所选主题；退出恢复当前主题。</div>
       <div class="toolbar">
-        <select id="plan-select"><option value="">(不设置 Plan 主题)</option>
-          ${STATE.themes.map(n=>`<option value="${esc(n)}" ${STATE.planTheme===n?'selected':''}>${esc(n)}</option>`).join('')}
-        </select>
+        <div class="c-drop" id="plan-drop" data-cdrop></div>
         <button class="btn primary" id="plan-save">保存 Plan 主题</button>
       </div>
       <div class="row"><span class="badge">当前正常主题: ${esc(STATE.current||'-')}</span>
       <span class="badge" id="plan-cur">Plan: ${esc(STATE.planTheme||'未设置')}</span></div>
       <p class="hint">原理：在 cli.js 注入 plan 主题对象，Plan 模式激活时自动应用。</p>`;
+    const planDrop = createDrop($('#plan-drop'), {
+      options: [{value:'', label:'(不设置 Plan 主题)'}, ...STATE.themes.map(n=>({value:n,label:n}))],
+      value: STATE.planTheme || '', label: 'Plan 模式主题',
+      onChange: ()=>{},
+    });
     $('#plan-save').addEventListener('click', async ()=>{
-      try{ const v=$('#plan-select').value; await api('/api/plan',{name:v||null}); STATE.planTheme=v; $('#plan-cur').textContent='Plan: '+(v||'未设置'); toast('Plan 主题已'+(v?'设置':'清除')); }
+      try{ const v=planDrop.value; await api('/api/plan',{name:v||null}); STATE.planTheme=v; $('#plan-cur').textContent='Plan: '+(v||'未设置'); toast('Plan 主题已'+(v?'设置':'清除')); }
       catch(e){ toast(e.message,true); }
     });
   } else if(currentPanel==='logo'){
@@ -799,9 +880,7 @@ function renderPanel(){
     p.innerHTML = `<h2>字体</h2>
       <div class="hint">mcode 本身不控制字体（由终端决定），这里可调整<b>预览字体</b>并查看终端设置指引。</div>
       <div class="toolbar">
-        <select id="font-select">
-          ${STATE.fonts.map(f=>`<option value="${esc(f.stack)}" data-name="${esc(f.name)}">${esc(f.name)}</option>`).join('')}
-        </select>
+        <div class="c-drop" id="font-drop" data-cdrop></div>
       </div>
       <h3>终端字体设置指引</h3>
       <div style="background:var(--bg-card);border:1px solid var(--border-strong);border-radius:8px;padding:14px;font-size:12px;line-height:1.8;color:var(--text-2)">
@@ -811,13 +890,17 @@ function renderPanel(){
         <b>VS Code 集成终端:</b> 设置 → terminal.integrated.fontFamily → 例如 <code style="color:var(--brand)">'JetBrains Mono', Consolas, monospace</code><br><br>
         <span style="color:var(--text-3)">推荐等宽字体：JetBrains Mono / Fira Code / Cascadia Code（含连字支持）</span>
       </div>`;
-    const sel=$('#font-select');
-    sel.value = localStorage.getItem('mcode-theme-font') || '';
-    sel.addEventListener('change', ()=>{
-      const opt=sel.options[sel.selectedIndex];
-      localStorage.setItem('mcode-theme-font', opt.value);
-      localStorage.setItem('mcode-theme-font-name', opt.dataset.name);
-      renderPreview();
+    createDrop($('#font-drop'), {
+      options: STATE.fonts.map(f=>({value:f.stack, label:f.name})),
+      value: localStorage.getItem('mcode-theme-font') || '',
+      label: '预览字体',
+      onChange: v=>{
+        const opt = STATE.fonts.find(f=>f.stack===v);
+        if(!opt) return;
+        localStorage.setItem('mcode-theme-font', opt.stack);
+        localStorage.setItem('mcode-theme-font-name', opt.name);
+        renderPreview();
+      },
     });
   }
   animatePanel(p);
@@ -849,6 +932,186 @@ function toast(msg, isErr){
   const t=$('#toast'); t.textContent=msg; t.className='show'+(isErr?' err':''); setTimeout(()=>{ t.className='hide'+(isErr?' err':''); setTimeout(()=>t.className='',250); },2200);
 }
 
+// ============ F-15 自定义下拉（原生 DOM，零依赖） ============
+function createDrop(container, opts){
+  const items = (opts.options||[]).slice();
+  let val = opts.value;
+  const onChange = opts.onChange;
+  let open = false, hoverIdx = -1;
+  container.classList.add('c-drop');
+  container.innerHTML =
+    `<button type="button" class="c-drop-trigger" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-label="${esc(opts.label||'')}">
+       <span class="c-drop-value"></span><span class="c-drop-caret">▾</span>
+     </button>
+     <ul class="c-drop-menu" role="listbox"></ul>`;
+  const trigger = container.querySelector('.c-drop-trigger');
+  const menu = container.querySelector('.c-drop-menu');
+  const valEl = container.querySelector('.c-drop-value');
+  function render(){
+    const cur = items.find(i=>i.value===val);
+    valEl.textContent = cur ? cur.label : '';
+    menu.innerHTML = items.map((it,i)=>{
+      const sel = it.value===val;
+      return `<li role="option" aria-selected="${sel?'true':'false'}" data-value="${esc(it.value)}" data-idx="${i}" class="${sel?'sel':''}">${esc(it.label)}${sel?'<span class="ck">✓</span>':''}</li>`;
+    }).join('');
+    if(!items.length) menu.innerHTML = `<li role="option" aria-disabled="true" style="color:var(--text-3);cursor:default">（无选项）</li>`;
+  }
+  function setOpen(v){
+    open = v;
+    container.classList.toggle('open', v);
+    trigger.setAttribute('aria-expanded', v?'true':'false');
+    if(v){ const cur = items.findIndex(i=>i.value===val); hoverIdx = cur>=0?cur:0; updateHover(); }
+  }
+  function updateHover(){
+    menu.querySelectorAll('li').forEach(li=>{ li.classList.toggle('hover', parseInt(li.dataset.idx,10)===hoverIdx); });
+    const el = menu.querySelector(`[data-idx="${hoverIdx}"]`);
+    if(el) el.scrollIntoView({block:'nearest'});
+  }
+  function select(v){
+    if(v===val || !items.some(i=>i.value===v)) return;
+    val = v; render();
+    if(onChange) onChange(v);
+  }
+  trigger.addEventListener('click', e=>{ e.stopPropagation(); setOpen(!open); });
+  trigger.addEventListener('keydown', e=>{
+    if(e.key==='ArrowDown'){ e.preventDefault(); if(!open) setOpen(true); else { hoverIdx=Math.min(items.length-1,hoverIdx+1); updateHover(); } }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); if(!open) setOpen(true); else { hoverIdx=Math.max(0,hoverIdx-1); updateHover(); } }
+    else if(e.key==='Enter'||e.key===' '){ e.preventDefault(); if(open&&hoverIdx>=0&&items[hoverIdx]){ select(items[hoverIdx].value); setOpen(false); } else setOpen(true); }
+    else if(e.key==='Escape'){ setOpen(false); }
+  });
+  menu.addEventListener('click', e=>{
+    const li = e.target.closest('li'); if(!li) return;
+    select(li.dataset.value); setOpen(false);
+  });
+  menu.addEventListener('mouseover', e=>{
+    const li = e.target.closest('li'); if(!li || !li.dataset.idx) return;
+    hoverIdx = parseInt(li.dataset.idx,10); updateHover();
+  });
+  document.addEventListener('click', e=>{ if(open && !container.contains(e.target)) setOpen(false); });
+  document.addEventListener('keydown', e=>{ if(open && e.key==='Escape') setOpen(false); });
+  render();
+  return {
+    get value(){ return val; },
+    set value(v){ val = v; render(); },
+    setOptions(o){ items.length=0; items.push(...o); render(); },
+    open(){ setOpen(true); }, close(){ setOpen(false); },
+  };
+}
+
+// ============ F-12 真实会话预览状态 ============
+let pvSource = 'sim';
+let realSessions = [];
+let realMessages = null;
+let realErr = null;
+let realTimer = null;
+let sessionDrop = null;
+
+// 极简代码高亮（零依赖，复用 .pv-code 现有高亮类）
+function highlightCode(code){
+  const e = esc(code);
+  let h = e.replace(/(\/\/[^\n]*|#[^\n]*)/g, '<span class="c">$1</span>');
+  h = h.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g, '<span class="s">$1</span>');
+  h = h.replace(/\b(def|class|return|import|from|if|else|elif|for|while|try|except|with|as|async|await|function|const|let|var|new|typeof|export|default|case|break|continue|switch|do|in|of|null|undefined|true|false|None|True|False|and|or|not|lambda|yield|pass|raise|self|this|static|void|int|str|float|bool|list|dict|set)\b/g, '<span class="k">$1</span>');
+  h = h.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="n">$1</span>');
+  return h;
+}
+// 消息文本 → HTML（``` 围栏 → .pv-code）
+function renderMsgText(text){
+  const parts = String(text).split(/```/g);
+  let html = '';
+  for(let i=0;i<parts.length;i++){
+    if(i%2===1){
+      let code = parts[i];
+      const nl = code.indexOf('\n');
+      if(nl>0) code = code.slice(nl+1);
+      html += `<div class="pv-code"><pre>${highlightCode(code.trim())}</pre></div>`;
+    } else if(parts[i].trim()){
+      html += `<div>${parts[i].replace(/\n{2,}/g,'</div><div>').replace(/\n/g,'<br>')}</div>`;
+    }
+  }
+  return html;
+}
+function renderRealBody(){
+  if(realErr) return `<div class="pv-real-err">真实会话加载失败：${esc(realErr)}（每 3s 自动重试）</div>`;
+  if(!realMessages) return `<div class="pv-real-err">未选择会话</div>`;
+  if(!realMessages.length) return `<div class="pv-real-err">该会话暂无可见文本消息</div>`;
+  return realMessages.map(m=>{
+    if(m.type==='thinking'){
+      return `<div class="pv-ai pv-thinking"><span class="pv-th-tag">thinking</span><br>${esc(m.text)}</div>`;
+    }
+    if(m.role==='user'){
+      return `<div class="pv-user"><div class="tag">You</div>${renderMsgText(m.text)}</div>`;
+    }
+    return `<div class="pv-ai">${renderMsgText(m.text)}</div>`;
+  }).join('');
+}
+// 选中态模拟块（F-14）：第 2 项 selected，样式与真实 patch 同色规则对齐
+function renderSelBlock(){
+  const items = [
+    {label:'EduSRC 侦察', sel:false},
+    {label:'漏洞分析', sel:true},
+    {label:'报告生成', sel:false},
+  ];
+  return `<div class="pv-sel" aria-label="skill 选择（选中态模拟）">` +
+    items.map(it=>`<div class="pv-sel-item${it.sel?' selected':''}">${esc(it.label)}${it.sel?'<span class="pv-sel-check">✓</span>':''}</div>`).join('') +
+    `</div>`;
+}
+async function loadSessionList(silent){
+  const btn = $('#pv-src-refresh');
+  if(btn && !silent){ btn.disabled = true; btn.textContent = '…'; }
+  try{
+    const list = await api('/api/session/list');
+    realSessions = list;
+    if(sessionDrop){
+      const cur = sessionDrop.value;
+      sessionDrop.setOptions(list.map(s=>({value:s.id, label:s.title})));
+      if(list.length){
+        if(!cur || !list.some(s=>s.id===cur)){ sessionDrop.value = list[0].id; }
+        loadRealSession(sessionDrop.value, true);
+      } else {
+        realMessages = null; realErr = null;
+        renderPreview();
+      }
+    }
+  }catch(e){ /* 静默重试，不弹错 */ }
+  finally { if(btn && !silent){ btn.disabled = false; btn.textContent = '↻'; } }
+}
+async function loadRealSession(id, silent){
+  try{
+    const data = await api('/api/session/'+encodeURIComponent(id)+'/messages');
+    realMessages = data.messages || [];
+    realErr = null;
+    renderPreview();
+  }catch(e){
+    if(!silent){ realErr = e.message; renderPreview(); }
+  }
+}
+function startRealPolling(){
+  stopRealPolling();
+  realTimer = setInterval(()=>{ if(pvSource!=='real') return; loadSessionList(true); }, 3000);
+}
+function stopRealPolling(){
+  if(realTimer){ clearInterval(realTimer); realTimer = null; }
+}
+function setPvSource(mode){
+  pvSource = mode;
+  $('#pv-src-sim').classList.toggle('on', mode==='sim');
+  $('#pv-src-real').classList.toggle('on', mode==='real');
+  $('#pv-src-controls').style.display = mode==='real' ? 'flex' : 'none';
+  if(mode==='real'){
+    if(!sessionDrop){
+      sessionDrop = createDrop($('#session-drop'), {
+        options: [], value: '', label: '会话', onChange: v=>loadRealSession(v, false),
+      });
+    }
+    loadSessionList(false);
+    startRealPolling();
+  } else {
+    stopRealPolling();
+  }
+  renderPreview();
+}
+
 async function init(){
   try{
     STATE = await api('/api/state');
@@ -858,15 +1121,16 @@ async function init(){
     else { STATE.activeTheme = {name:'(未应用)', appearance:'dark', colors:{...STATE.defaults.ui.dark}, ansi:{...STATE.defaults.ansi.dark}, syntax:{...STATE.defaults.syntax.dark}}; applyCSSVars(STATE.activeTheme); renderPreview(); }
     renderNav(); renderPanel();
 
-    // Header 主题快速切换（仅预览，不写盘）
-    const themeSel = $('#theme-select');
-    themeSel.innerHTML = STATE.themes.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
-    themeSel.value = STATE.current || '';
-    themeSel.addEventListener('change', async ()=>{
-      const v = themeSel.value;
-      if(!v) return;
-      try{ await loadTheme(v); }
-      catch(e){ toast(e.message, true); }
+    // Header 主题快速切换（仅预览，不写盘）——F-15 自定义下拉
+    themeDrop = createDrop($('#theme-drop'), {
+      options: STATE.themes.map(n=>({value:n,label:n})),
+      value: STATE.current || '',
+      label: '快速切换主题',
+      onChange: async v=>{
+        if(!v) return;
+        try{ await loadTheme(v); }
+        catch(e){ toast(e.message, true); }
+      },
     });
 
     // 预览外观切换（仅预览区用 defaults light/dark 渲染）
@@ -874,7 +1138,82 @@ async function init(){
       pvAppearance = pvAppearance==='live' ? 'dark' : (pvAppearance==='dark' ? 'light' : 'live');
       renderPreview();
     });
+
+    // F-12 预览源：模拟（默认）/ 真实
+    $('#pv-src-sim').addEventListener('click', ()=>setPvSource('sim'));
+    $('#pv-src-real').addEventListener('click', ()=>setPvSource('real'));
+    $('#pv-src-refresh').addEventListener('click', ()=>{
+      if(pvSource==='real' && sessionDrop) loadSessionList(false);
+    });
   }catch(e){ console.error('[mcode-theme] init failed:', e); toast('初始化失败: '+e.message, true); }
+
+  // F-07 导出主题包
+  $('#btn-export').addEventListener('click', ()=>{
+    try{
+      const t = currentThemeObj();
+      const fname = (t.name||'theme').replace(/[^a-z0-9-_]/gi,'_');
+      const d = new Date();
+      const ymd = ''+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+      const pack = {
+        format:'mcode-theme-pack', version:1, exportedAt:new Date().toISOString(),
+        name:t.name||'live-edit', appearance:t.appearance,
+        colors:t.colors, ansi:t.ansi, syntax:t.syntax, logo:t.logo,
+      };
+      const blob = new Blob([JSON.stringify(pack,null,2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fname+'-'+ymd+'.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+      toast('已导出主题包: '+a.download);
+    }catch(e){ toast('导出失败: '+e.message, true); }
+  });
+
+  // F-08 导入主题包（校验 → 预览，不写盘）
+  $('#btn-import').addEventListener('click', ()=>$('#import-file').click());
+  $('#import-file').addEventListener('change', e=>{
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      let data;
+      try{ data = JSON.parse(reader.result); }
+      catch(err){ toast('主题包无效：JSON 解析失败', true); return; }
+      if(!data || typeof data !== 'object' || data.format !== 'mcode-theme-pack'){
+        toast('主题包无效：format 字段不匹配', true); return;
+      }
+      const colors = data.colors || {};
+      const bad = [];
+      for(const k of STATE.uiKeys){
+        if(!(typeof colors[k]==='string' && /^#[0-9a-fA-F]{6}$/.test(colors[k]))) bad.push(k);
+      }
+      if(bad.length){
+        toast('主题包无效：colors 缺少有效 #RRGGBB 键: '+bad.join(', '), true); return;
+      }
+      // 过滤不合法 ansi/syntax 键（容忍缺失，不整体拒绝）
+      const ansiRE = /^(black|red|green|yellow|blue|magenta|cyan|white|gray|blackBright|redBright|greenBright|yellowBright|blueBright|magentaBright|cyanBright|whiteBright)$/;
+      const ansi = {}, syntax = {};
+      for(const [k,v] of Object.entries(data.ansi||{})){ if(STATE.ansiKeys.includes(k) && typeof v==='string' && ansiRE.test(v)) ansi[k]=v; }
+      for(const [k,v] of Object.entries(data.syntax||{})){ if(STATE.syntaxKeys.includes(k) && typeof v==='string' && /^#[0-9a-fA-F]{6}$/.test(v)) syntax[k]=v; }
+      const theme = {
+        name: typeof data.name==='string' && data.name ? data.name : 'imported',
+        appearance: data.appearance==='light' ? 'light' : 'dark',
+        colors: {...colors},
+        ansi, syntax,
+        logo: (typeof data.logo==='string' && /^#[0-9a-fA-F]{6}$/.test(data.logo)) ? data.logo : colors.brand,
+      };
+      STATE.activeTheme = theme;
+      applyCSSVars(theme);
+      dirty = {};
+      renderPreview(); renderPanel();
+      $('#badge-theme').textContent = '主题: ' + theme.name + (theme.appearance==='light'?' (亮)':'') + '（导入预览）';
+      if(themeDrop) themeDrop.value = theme.name;
+      toast('已导入主题包预览: '+theme.name+'（未写盘，点“应用到 mcode”生效）');
+    };
+    reader.onerror = ()=>toast('读取文件失败', true);
+    reader.readAsText(file);
+  });
 
   $('#btn-apply').addEventListener('click', async ()=>{
     try{
@@ -902,9 +1241,10 @@ async function init(){
       STATE.themes.push(name); STATE.themes.sort();
       toast('已保存主题: '+name);
       renderNav();
-      const themeSel = $('#theme-select');
-      themeSel.innerHTML = STATE.themes.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
-      themeSel.value = name;
+      if(themeDrop){
+        themeDrop.setOptions(STATE.themes.map(n=>({value:n,label:n})));
+        themeDrop.value = name;
+      }
     }catch(e){ toast(e.message,true); }
   });
   document.addEventListener('keydown', e=>{

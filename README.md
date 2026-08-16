@@ -216,10 +216,13 @@ mcode 启动 Logo 使用**三段垂直渐变**（顶→中→底）：
 | Catppuccin 变体 | catppuccin-latte-mauve / latte-blue / macchiato-peach / frappe-green 来自 [catppuccin/opencode](https://github.com/catppuccin/opencode) 官方 port（MIT License） |
 | 社区主题 | moonlight 改编自 [brunogabriel/opencode-moonlight-theme](https://github.com/brunogabriel/opencode-moonlight-theme)；zenburn-light / synthwave-light 为对应经典主题的亮色改编 |
 
+### 第三方许可声明
+
+主题配色转换自 opencode（MIT, https://github.com/anomalyco/opencode）与
+catppuccin/opencode（MIT, https://github.com/catppuccin/opencode）。
+
 **许可声明**：opencode 与 catppuccin 主题均为 MIT License，本仓库改编遵循原许可
 （保留版权声明、不附加额外限制）。本仓库自身保持 MIT，`LICENSE` 文件不变。
-
-感谢 opencode 与 catppuccin 社区的主题体系，让 50 个高质量主题得以汇聚。
 
 ### 转换器
 

@@ -551,15 +551,9 @@ def patch_cli(theme):
         ]
         node_bin = next((c for c in candidates if c and os.path.isfile(c)), None)
         if node_bin:
-            try:
-                r = subprocess.run([node_bin, "--check", CLI_PATH],
-                                   capture_output=True, text=True, timeout=60)
-            except subprocess.TimeoutExpired:
-                # 低性能机器上大 cli.js（含渐变注入）语法校验可能超时；
-                # 超时不视为破坏，跳过回滚（patch 已通过正则锚点校验）
-                print("warning: node --check 超时，跳过语法校验（patch 已应用）", file=sys.stderr)
-                r = None
-            if r is not None and r.returncode != 0:
+            r = subprocess.run([node_bin, "--check", CLI_PATH],
+                               capture_output=True, text=True, timeout=30)
+            if r.returncode != 0:
                 # patch 破坏文件，回滚到 patch 前的状态（保留已应用主题，
                 # 而非官方原版——否则二次 patch 失败会丢掉当前主题）
                 try:

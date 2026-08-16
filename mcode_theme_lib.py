@@ -104,6 +104,8 @@ CLI_PATH = os.path.join(MCODE_LIB, "cli.js")
 BACKUP_PATH = os.path.join(MCODE_LIB, "cli.js.minimax-original")
 THEME_DIR = os.path.join(_mcode_data_dir(), "themes")
 CURRENT_FILE = os.path.join(THEME_DIR, ".current-theme.json")
+LAST_APPLIED_FILE = os.path.join(THEME_DIR, ".last-applied.json")
+TOOL_DIR = os.path.dirname(os.path.abspath(__file__))
 
 UI_KEYS = [
     "brand", "wordmarkHighlight", "wordmarkShadow", "signal", "orbit",
@@ -268,6 +270,55 @@ def cli_fingerprint():
     except OSError:
         pass
     return {"version": version, "md5": md5}
+
+
+def cli_sha256():
+    """cli.js SHA256 指纹（F-06，用于 update 检测 mcode 升级）"""
+    import hashlib
+    try:
+        with open(CLI_PATH, "rb") as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    except OSError:
+        return None
+
+
+def record_last_applied(theme_name):
+    """apply 时记录 cli.js SHA256 指纹（~/.minimax/themes/.last-applied.json）"""
+    try:
+        os.makedirs(THEME_DIR, exist_ok=True)
+        data = {
+            "fingerprint": cli_sha256(),
+            "theme": theme_name,
+            "time": int(__import__("time").time()),
+        }
+        with open(LAST_APPLIED_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+    except OSError:
+        pass
+
+
+def update_check():
+    """F-06 `mcode-theme update`：指纹一致 → 已是最新；不一致 → 提示重新 apply"""
+    if not os.path.isfile(LAST_APPLIED_FILE):
+        print("尚未记录 apply 指纹（~/.minimax/themes/.last-applied.json 不存在）。")
+        print("运行一次 mcode-theme apply <name> 后，即可用本命令检测 mcode 升级。")
+        return
+    try:
+        with open(LAST_APPLIED_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        print("warning: .last-applied.json 无法解析，请重新 apply 一次。")
+        return
+    cur = cli_sha256()
+    if cur is None:
+        print(f"warning: 无法读取 cli.js（{CLI_PATH}），跳过检测。")
+        return
+    theme_name = data.get("theme") or "(unknown)"
+    if cur == data.get("fingerprint"):
+        print(f"已是最新（cli.js SHA256 指纹一致，主题 '{theme_name}' 仍有效）")
+    else:
+        print(f"mcode 已升级（cli.js SHA256 指纹变化），"
+              f"运行 mcode-theme apply {theme_name} 重新应用。")
 
 
 def check_stale():
@@ -541,6 +592,8 @@ def patch_cli(theme):
         theme["_cliVersion"] = fp["version"]
     with open(CURRENT_FILE, "w", encoding="utf-8") as f:
         json.dump(theme, f, indent=2)
+    # F-06: 记录 apply 指纹（.last-applied.json）
+    record_last_applied(theme["name"])
     # post-patch 自动 JS 语法校验（防止破坏 cli.js）
     if os.path.isfile(CLI_PATH) and os.environ.get("MCODE_THEME_NO_CHECK") != "1":
         node_exe = _node_executable_name()
@@ -574,15 +627,135 @@ def patch_cli(theme):
     print(f"installed theme '{theme['name']}' ({appearance}) - patched UI + ANSI + syntax")
 
 
-def install(path):
-    theme = load_theme(path)
+def check_theme_disciplines(theme):
+    """F-09：9 条纪律校验（与 validate-themes.py 同款）。
+    返回 (warns, fails)；fails 非空即拒绝安装。"""
+    # 优先复用 validate-themes.py（单一事实源）；缺失时内联兜底
+    try:
+        import importlib.util
+        val_path = os.path.join(TOOL_DIR, "validate-themes.py")
+        if os.path.isfile(val_path):
+            if TOOL_DIR not in sys.path:
+                sys.path.insert(0, TOOL_DIR)
+            spec = importlib.util.spec_from_file_location("mcode_validate_mod", val_path)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod.check_theme(theme)
+    except Exception:
+        pass
+    return _inline_discipline_check(theme)
+
+
+def _inline_discipline_check(theme):
+    """内联 9 条纪律（validate-themes.py 不可用时的兜底）"""
+    import colorsys as _cs
+    c = theme.get("colors") or {}
+    is_light = theme.get("appearance") == "light"
+    fails, warns = [], []
+
+    def hex_to_rgb(h):
+        h = h.lstrip("#")
+        return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+    def lum(h):
+        r, g, b = (v / 255.0 for v in hex_to_rgb(h))
+        lin = tuple(v ** 2.2 for v in (r, g, b))
+        return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+    def hue(h):
+        r, g, b = (v / 255.0 for v in hex_to_rgb(h))
+        hh, _, _ = _cs.rgb_to_hls(r, g, b)
+        return hh * 360.0
+
+    required = ["userMessageBg", "border", "line", "muted", "dim", "text",
+                "brand", "accent", "signal", "wordmarkHighlight", "wordmarkShadow"]
+    for k in required:
+        if k not in c or not isinstance(c[k], str) or not c[k].startswith("#"):
+            fails.append(f"纪律0: 缺少有效颜色键 {k}")
+
+    def L(k):
+        return lum(c[k]) if k in c and c[k].startswith("#") else -1
+
+    if not is_light:
+        for a, b in zip(["dim", "muted", "text"], ["muted", "text"]):
+            if not (L(a) < L(b)):
+                fails.append(f"纪律1: 亮度序违反 {a} -> {b}")
+        for a, b in zip(["userMessageBg", "border"], ["border", "line"]):
+            if not (L(a) < L(b)):
+                fails.append(f"纪律1: 亮度序违反 {a} -> {b}")
+    else:
+        for a, b in zip(["text", "muted"], ["muted", "dim"]):
+            if not (L(a) < L(b)):
+                fails.append(f"纪律1(light): 亮度序违反 {a} -> {b}")
+        for a, b in zip(["line", "border"], ["border", "userMessageBg"]):
+            if not (L(a) < L(b)):
+                fails.append(f"纪律1(light): 亮度序违反 {a} -> {b}")
+    for a, b in [("text", "muted"), ("text", "dim"), ("muted", "dim")]:
+        if abs(L(a) - L(b)) < 0.10:
+            fails.append(f"纪律2: {a}/{b} 亮度差 < 0.10")
+    hues = [hue(c[k]) for k in ("userMessageBg", "border", "line")]
+    for i in range(3):
+        for j in range(i + 1, 3):
+            d = min(abs(hues[i] - hues[j]), 360 - abs(hues[i] - hues[j]))
+            if d > 25:
+                fails.append(f"纪律3: 色相偏差 {d:.1f}°")
+    for k in ("userMessageBg", "border", "line", "muted", "dim"):
+        lv = L(k)
+        if lv > 0.85 or lv < 0.05:
+            continue
+        _, s, _ = _cs.rgb_to_hls(*[v / 255.0 for v in hex_to_rgb(c[k])])
+        if s > 0.45:
+            fails.append(f"纪律4: {k} 饱和度 {s:.2f} > 0.45")
+    if len({c["brand"], c["accent"], c["signal"]}) != 1:
+        fails.append("纪律5: 品牌色族发散")
+    try:
+        from logo_styles import check_gradient as _cg
+        fails.extend(_cg(c, c.get("userMessageBg")))
+    except Exception as e:
+        fails.append(f"纪律6-9: 渐变检查异常 {e}")
+    return warns, fails
+
+
+def install_from_source(source):
+    """F-09：`mcode-theme install <URL|本地JSON>`。
+    获取 → 9 条纪律校验 → FAIL 拒绝输出明细；通过 → 入库（不 patch，提示 apply）。"""
+    import tempfile
+    import urllib.request
+    theme = None
+    tmp = None
+    try:
+        if source.startswith("http://") or source.startswith("https://"):
+            tmp = os.path.join(tempfile.gettempdir(),
+                               f"mcode-theme-fetch-{os.getpid()}.json")
+            with urllib.request.urlopen(source, timeout=30) as r:
+                data = r.read()
+            with open(tmp, "wb") as f:
+                f.write(data)
+            theme = load_theme(tmp)
+        else:
+            theme = load_theme(source)
+    except Exception as e:
+        err(f"无法读取主题来源 {source}: {e}")
+    finally:
+        if tmp and os.path.isfile(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+    warns, fails = check_theme_disciplines(theme)
+    if fails:
+        print(f"error: 主题 '{theme['name']}' 未通过纪律校验，已拒绝安装：", file=sys.stderr)
+        for w in fails:
+            print(f"    - {w}", file=sys.stderr)
+        sys.exit(1)
     os.makedirs(THEME_DIR, exist_ok=True)
     dest = os.path.join(THEME_DIR, f"{theme['name']}.json")
     with open(dest, "w", encoding="utf-8") as f:
         json.dump(theme, f, indent=2)
-    patch_cli(theme)
+    n = 9 - len({int(re.match(r"纪律(\d+)", w).group(1)) for w in fails
+                 if re.match(r"纪律(\d+)", w)})
+    print(f"已安装 {theme['name']}（{n}/50 纪律通过）→ mcode-theme apply {theme['name']}")
     print(f"saved theme to {dest}")
-    print("\n重启 mcode 后生效（或 /quit 后重新运行 mcode）")
 
 
 def apply(name):
@@ -702,5 +875,82 @@ def theme_path(name):
     return os.path.join(THEME_DIR, f"{name}.json")
 
 
+def main(argv):
+    if len(argv) < 2:
+        print(__doc__)
+        return 0
+    cmd = argv[1]
+    if cmd not in ("restore", "update"):
+        check_stale()
+    if cmd == "install":
+        if len(argv) < 3:
+            err("usage: mcode-theme install <theme.json|URL>")
+        install_from_source(argv[2])
+    elif cmd == "apply":
+        if len(argv) < 3:
+            err("usage: mcode-theme apply <name>")
+        apply(argv[2])
+    elif cmd == "update":
+        update_check()
+    elif cmd == "plan":
+        if len(argv) < 3:
+            # 无参数：交互式从列表选择
+            if not os.path.isdir(THEME_DIR):
+                err("no themes installed. Run 'mcode-theme install <theme.json>' first.")
+            names = sorted(fn[:-5] for fn in os.listdir(THEME_DIR)
+                           if fn.endswith(".json") and not fn.startswith("."))
+            if not names:
+                err("no themes installed.")
+            print("选择 plan 模式使用的主题:")
+            for i, n in enumerate(names, 1):
+                print(f"  {i}. {n}")
+            try:
+                sel = input("输入编号: ").strip()
+                idx = int(sel) - 1
+                if idx < 0 or idx >= len(names):
+                    err("invalid selection")
+            except (ValueError, EOFError):
+                err("invalid input")
+            set_plan(names[idx])
+        else:
+            set_plan(argv[2])
+    elif cmd == "unplan":
+        unset_plan()
+    elif cmd == "random":
+        random_theme()
+    elif cmd == "web":
+        # Web 可视化配置器
+        tool_dir = os.path.dirname(os.path.abspath(__file__))
+        home = os.path.expanduser("~")
+        candidates = [
+            os.path.join(tool_dir, "web.py"),               # 与工具同目录
+            os.path.join(os.path.dirname(tool_dir), "mcode-themes", "web.py"),  # ~/mcode-themes/
+            os.path.join(home, "mcode-themes", "web.py"),   # ~/mcode-themes/
+            os.path.join(tool_dir, "scripts", "web.py"),    # 插件包布局
+        ]
+        web_path = next((p for p in candidates if os.path.isfile(p)), None)
+        if not web_path:
+            err("web.py not found; run from mcode-themes source directory")
+        web_args = [sys.executable, web_path]
+        if len(argv) > 2:
+            web_args += argv[2:]
+        os.execvp(web_args[0], web_args)
+    elif cmd == "list":
+        list_themes()
+    elif cmd == "restore":
+        restore()
+    elif cmd == "current":
+        cur = current()
+        print(json.dumps(cur, indent=2) if cur else "official default theme")
+    elif cmd == "create":
+        name = argv[2] if len(argv) > 2 else "my-theme"
+        create_template(name)
+    else:
+        print(f"unknown command: {cmd}")
+        print(__doc__)
+        return 1
+    return 0
+
+
 if __name__ == "__main__":
-    print("This is a library module, import it instead.")
+    sys.exit(main(sys.argv))

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mcode-theme",
+  "version": "0.1.0",
+  "description": "MiniMax Code CLI 主题管理：安装/切换/恢复/Web 可视化配置器/主题包导入（50 个内置主题，9 条纪律校验）",
+  "author": {
+    "name": "wufufu770",
+    "url": "https://github.com/wufufu770"
+  },
+  "homepage": "https://github.com/wufufu770/mcode-theme",
+  "repository": "https://github.com/wufufu770/mcode-theme",
+  "license": "MIT",
+  "keywords": [
+    "mcode",
+    "minimax",
+    "theme",
+    "themes",
+    "tui",
+    "cli"
+  ]
+}

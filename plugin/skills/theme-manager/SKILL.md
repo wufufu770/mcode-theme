@@ -6,7 +6,7 @@ metadata:
   version: "1.0"
   category: customization
   sources:
-    - https://github.com/wufufu770/minimax-code-themes
+    - https://github.com/MiniMax-AI
 ---
 
 # Theme Manager
