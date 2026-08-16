@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+"""
+mcode-theme - MiniMax Code CLI 主题安装工具（入口包装器）
+
+实现位于同目录 mcode_theme_lib.py（单一事实源），本文件仅负责引导：
+
+用法:
+  mcode-theme install <theme.json|URL>  校验并安装主题到 ~/.minimax/themes
+  mcode-theme apply <name>              应用已安装的主题（补丁 cli.js）
+  mcode-theme update                    检测 mcode 升级（cli.js 指纹比对）
+  mcode-theme list                      列出已安装主题
+  mcode-theme restore                   恢复官方默认主题
+  mcode-theme current                   显示当前主题
+  mcode-theme create <name>             生成主题模板（基于官方 dark 主题）
+  mcode-theme web                       启动 Web 可视化配置器
+"""
+
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import mcode_theme_lib  # noqa: E402
+
+
+if __name__ == "__main__":
+    sys.exit(mcode_theme_lib.main(sys.argv))
