@@ -8,7 +8,7 @@
 2. text/muted/dim 两两相对亮度差 ≥ 0.10
 3. hue(userMessageBg)/hue(border)/hue(line) 两两偏差 ≤ 25°
 4. 结构色（userMessageBg/border/line/muted/dim）饱和度 ≤ 0.45
-5. brand/accent/signal/wordmarkHighlight 四者完全相等
+5. brand/accent/signal 三者完全相等（wordmarkHighlight 为渐变顶，允许提亮）
 
 用法：
   python3 validate-themes.py [themes目录]    # 默认 ./themes
@@ -49,7 +49,7 @@ def check_theme(theme):
 
     # 缺键：直接计 FAIL（数据不完整）
     required = ["userMessageBg", "border", "line", "muted", "dim", "text",
-                "brand", "accent", "signal", "wordmarkHighlight"]
+                "brand", "accent", "signal", "wordmarkHighlight", "wordmarkShadow"]
     for k in required:
         if k not in c or not isinstance(c[k], str) or not c[k].startswith("#"):
             fails.append(f"纪律0: 缺少有效颜色键 {k}")
@@ -109,11 +109,19 @@ def check_theme(theme):
             if s > 0.45:
                 fails.append(f"纪律4: {k} 饱和度 {s:.2f} > 0.45")
 
-        # 纪律 5: 品牌色族完全相等
-        fam = {c["brand"], c["accent"], c["signal"], c["wordmarkHighlight"]}
+        # 纪律 5: brand/accent/signal 完全相等（wordmarkHighlight 为渐变顶，允许提亮）
+        fam = {c["brand"], c["accent"], c["signal"]}
         if len(fam) != 1:
             fails.append(f"纪律5: 品牌色族发散 {sorted(fam)}")
 
+    if not fails:
+        # 纪律 6-9: 三段渐变区分度（F-02 R1-R4）
+        try:
+            from logo_styles import check_gradient as _cg
+            gv = _cg(c, c.get("userMessageBg"))
+            fails.extend(gv)
+        except Exception as e:
+            fails.append(f"纪律6-9: 渐变检查异常 {e}")
     return warns, fails
 
 
