@@ -3,8 +3,8 @@
   "appearance": "dark",
   "colors": {
     "brand": "#AE81FF",
-    "wordmarkHighlight": "#AE81FF",
-    "wordmarkShadow": "#0C0C0B",
+    "wordmarkHighlight": "#C8AAFF",
+    "wordmarkShadow": "#4EB3EB",
     "signal": "#AE81FF",
     "orbit": "#66D9EF",
     "accent": "#AE81FF",
@@ -49,5 +49,6 @@
     "text": "#F8F8F2",
     "yellow": "#E6DB74"
   },
-  "logo": "#AE81FF"
+  "logo": "#AE81FF",
+  "logoStyle": "nord"
 }
