@@ -3,8 +3,8 @@
   "appearance": "dark",
   "colors": {
     "brand": "#82AAFF",
-    "wordmarkHighlight": "#82AAFF",
-    "wordmarkShadow": "#15171F",
+    "wordmarkHighlight": "#ABC6FF",
+    "wordmarkShadow": "#6B4EEB",
     "signal": "#82AAFF",
     "orbit": "#89DDFF",
     "accent": "#82AAFF",
@@ -49,5 +49,6 @@
     "text": "#959DCB",
     "yellow": "#FFCB6B"
   },
-  "logo": "#82AAFF"
+  "logo": "#82AAFF",
+  "logoStyle": "emerald"
 }
