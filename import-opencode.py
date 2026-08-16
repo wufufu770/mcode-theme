@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""import-opencode.py — opencode 主题 → mcode 主题适配器
+"""import-opencode.py — 通用主题 JSON → mcode 主题适配器
 
-把 opencode 生态的主题 JSON（https://opencode.ai/theme.json schema，含 defs
-引用）转换为 mcode 的 15 键 colors + 13 键 syntax 结构，并派生三段渐变 Logo。
+把标准 theme.json schema（https://opencode.ai/theme.json，含 defs 引用）
+格式的主题文件转换为 mcode 的 15 键 colors + 13 键 syntax 结构，并派生
+三段渐变 Logo。
 
 用法：
   python3 import-opencode.py <主题.json> [--name X] [--appearance dark|light] [--out DIR]
-  python3 import-opencode.py --all --out DIR    # 批量转换当前目录下所有 opencode 主题
+  python3 import-opencode.py --all --out DIR    # 批量转换当前目录下所有 theme.json 格式主题
 
 退出码：
   0 = 成功（可能有 warning）
@@ -15,7 +16,7 @@
   3 = defs 循环引用
   4 = 缺少 primary 等必需键
 
-许可：opencode 主题来自 anomalyco/opencode（MIT），转换逻辑本文件独立实现。
+转换逻辑本文件独立实现（MIT）。
 """
 import argparse
 import colorsys
