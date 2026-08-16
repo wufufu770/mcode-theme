@@ -208,6 +208,19 @@ mcode 启动 Logo 使用**三段垂直渐变**（顶→中→底）：
 
 全部 50 个通过 validate-themes.py 9 条纪律校验。
 
+## 主题来源与许可
+
+| 来源 | 说明 |
+|---|---|
+| opencode 内置主题 | 社区流行主题 21 个与亮色变体（ayu-light / synthwave-light 等）改编自 [anomalyco/opencode](https://github.com/anomalyco/opencode) 主题体系（MIT License） |
+| Catppuccin 变体 | catppuccin-latte-mauve / latte-blue / macchiato-peach / frappe-green 来自 [catppuccin/opencode](https://github.com/catppuccin/opencode) 官方 port（MIT License） |
+| 社区主题 | moonlight 改编自 [brunogabriel/opencode-moonlight-theme](https://github.com/brunogabriel/opencode-moonlight-theme)；zenburn-light / synthwave-light 为对应经典主题的亮色改编 |
+
+**许可声明**：opencode 与 catppuccin 主题均为 MIT License，本仓库改编遵循原许可
+（保留版权声明、不附加额外限制）。本仓库自身保持 MIT，`LICENSE` 文件不变。
+
+感谢 opencode 与 catppuccin 社区的主题体系，让 50 个高质量主题得以汇聚。
+
 ### 转换器
 
 ```bash
