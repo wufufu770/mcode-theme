@@ -75,6 +75,10 @@ def _candidate_install_roots():
             roots.append(os.path.join(local, "MinimaxCode"))
     else:
         roots.append(os.path.expanduser("~/.minimax-code"))  # 历史 npm --prefix 安装
+        # npm 默认全局安装路径（~/.npm-global/lib/node_modules）
+        npm_global_prefix = os.path.join(os.path.expanduser("~"), ".npm-global")
+        if os.path.isdir(os.path.join(npm_global_prefix, "lib", "node_modules")):
+            roots.append(npm_global_prefix)
         xdg = os.environ.get("XDG_DATA_HOME")
         if xdg:
             roots.append(os.path.join(os.path.abspath(os.path.expanduser(xdg)), "minimax-code"))
@@ -83,7 +87,17 @@ def _candidate_install_roots():
 
 
 def _mcode_lib_dir():
-    """定位实际存在的 mcode lib 目录（含 cli.js 的优先）。"""
+    """定位实际存在的 mcode lib 目录（含 cli.js 的优先）：
+    1. 优先使用 which mcode 解析出的真实路径（跟随符号链接）
+    2. 回退到候选安装根列表"""
+    import shutil
+    mcode_bin = shutil.which("mcode")
+    if mcode_bin:
+        real_path = os.path.realpath(mcode_bin)
+        # real_path 是 cli.js 的真实路径，直接返回其所在目录
+        candidate = os.path.dirname(real_path)
+        if os.path.isfile(os.path.join(candidate, "cli.js")):
+            return candidate
     for root in _candidate_install_roots():
         candidate = os.path.join(root, "lib", "node_modules", "@minimax-ai", "code")
         if os.path.isfile(os.path.join(candidate, "cli.js")):
@@ -783,9 +797,10 @@ def patch_cli(theme):
     #     段2/段4 在线性 RGB 空间插值；兜底：hl−shadow 亮度差 <0.26 时 shadow
     #     ×0.85 迭代加深（保证相邻段亮度差 ≥0.06）；brand 亮度不在区间内或
     #     与任一端差 <0.122 时，段3 退化为线性中点。256 色（colorLevel<3）降级保留。
+    # v0.1.4+ logo函数名为vst，使用FS.hero（非xS.hero）
     m_ent = re.search(
-        rb'function Ent\(t\)\{let\{fullMinWidth:e,mediumMinWidth:r,microMinWidth:i,'
-        rb'fallbackTitle:n\}=xS\.hero,',
+        rb'function vst\(t\)\{let\{fullMinWidth:e,mediumMinWidth:r,microMinWidth:i,'
+        rb'fallbackTitle:n\}=FS\.hero,',
         content)
     if m_ent:
         grad_fn = (
@@ -828,33 +843,62 @@ def patch_cli(theme):
             'else{out.push("\\x1b[38;5;"+SEGIDX[Math.min(4,Math.floor(t*4))]+"m")}}return out}'
         ).encode('ascii')
         if b'__mcodeLogoGradient5' not in content:
-            # 注入到 plan 块之后（与 refresh 同一插入点，按加入顺序拼接）
-            reps.append((plan_block_end, plan_block_end, grad_fn))
+            # 注入到 __mcodeThemeFn 变量声明之后（避免与 plan 块 refresh 注入重叠）
+            m_tf = re.search(rb'var __mcodeThemeFn=[^;]*;', content)
+            grad_insert = m_tf.end() if m_tf else plan_block_end
+            reps.append((grad_insert, grad_insert, grad_fn))
         else:
             # 已有 v5 插桩（可能为旧版本）：整体替换函数体，保证升级生效
             reps.append(rep_regex(content,
                                   rb'function __mcodeLogoGradient5\(rows,top,mid,bottom\)\{.*\}return out\}',
                                   lambda m: grad_fn, "__mcodeLogoGradient5 函数体升级"))
         # 替换 Ent 的 l 数组（兼容旧版 __mcodeLogoGradient 三段插桩：一并换为五段）
-        new_l = A('l=__mcodeLogoGradient5(a.length,me.wordmarkHighlight,me.brand,me.wordmarkShadow)')
-        if new_l not in content:
-            old_l3 = A('l=__mcodeLogoGradient(a.length,me.wordmarkHighlight,me.brand,me.wordmarkShadow)')
-            if old_l3 in content:
-                reps.append(rep_str(content, old_l3, new_l, "Ent logo l-array (v3→v5)"))
+        # v0.1.4+ 变量名为 de（非旧版 me）
+        _v = rb'(?:de|me)'  # 兼容两种变量名
+        new_l = A('l=__mcodeLogoGradient5(a.length,de.wordmarkHighlight,de.brand,de.wordmarkShadow)')
+        new_l_me = A('l=__mcodeLogoGradient5(a.length,me.wordmarkHighlight,me.brand,me.wordmarkShadow)')
+        if new_l not in content and new_l_me not in content:
+            old_l3_de = A('l=__mcodeLogoGradient(a.length,de.wordmarkHighlight,de.brand,de.wordmarkShadow)')
+            old_l3_me = A('l=__mcodeLogoGradient(a.length,me.wordmarkHighlight,me.brand,me.wordmarkShadow)')
+            if old_l3_de in content:
+                reps.append(rep_str(content, old_l3_de, new_l, "Ent logo l-array (v3→v5, de)"))
+            elif old_l3_me in content:
+                reps.append(rep_str(content, old_l3_me, new_l, "Ent logo l-array (v3→v5, me)"))
             else:
-                old_l = A('l=[me.wordmarkHighlight,me.wordmarkHighlight,me.brand,me.brand,me.wordmarkShadow,me.wordmarkShadow]')
-                if old_l in content:
-                    reps.append(rep_str(content, old_l, new_l, "Ent logo l-array (raw)"))
+                old_l_de = A('l=[de.wordmarkHighlight,de.wordmarkHighlight,de.brand,de.brand,de.wordmarkShadow,de.wordmarkShadow]')
+                old_l_me = A('l=[me.wordmarkHighlight,me.wordmarkHighlight,me.brand,me.brand,me.wordmarkShadow,me.wordmarkShadow]')
+                if old_l_de in content:
+                    reps.append(rep_str(content, old_l_de, new_l, "Ent logo l-array (raw, de)"))
+                elif old_l_me in content:
+                    reps.append(rep_str(content, old_l_me, new_l, "Ent logo l-array (raw, me)"))
                 else:
                     raise PatchAbort("cannot find anchor: <Ent logo l-array>（中止且不落盘）")
         # 每行用渐变序列号（m 取 l[m]，l 长度=行数，无需 %7；保留 fallback）
-        old_map = A('m=d%7,p=s?l[m]??me.brand:me.brand;return dun(ye.bold.hex(p)(u),t)')
-        new_map = A('m=d%7,p=s?(l[m]??me.brand):me.brand;return p&&p.startsWith("\\x1b")?'
-                    'dun(p+u+"\\x1b[0m",t):dun(ye.bold.hex(p)(u),t)')
-        if new_map not in content:
-            if old_map in content:
-                reps.append(rep_str(content, old_map, new_map, "Ent 渐变行映射"))
-            else:
+        # v0.1.4+ 使用Zfn（非旧版dun）；兼容已有 p.startsWith 补丁
+        old_map_zfn_raw = A('m=d%7,p=s?l[m]??de.brand:de.brand;return Zfn(he.bold.hex(p)(u),t)')
+        old_map_zfn_me = A('m=d%7,p=s?l[m]??me.brand:me.brand;return Zfn(he.bold.hex(p)(u),t)')
+        old_map_dun_raw = A('m=d%7,p=s?l[m]??de.brand:de.brand;return dun(ye.bold.hex(p)(u),t)')
+        old_map_dun_me = A('m=d%7,p=s?l[m]??me.brand:me.brand;return dun(ye.bold.hex(p)(u),t)')
+        old_map_dun_patch = A('m=d%7,p=s?(l[m]??me.brand):me.brand;return p&&p.startsWith("\\x1b")?'
+                              'dun(p+u+"\\x1b[0m",t):dun(ye.bold.hex(p)(u),t)')
+        new_map = A('m=d%7,p=s?(l[m]??de.brand):de.brand;return p&&p.startsWith("\\x1b")?'
+                    'Zfn(p+u+"\\x1b[0m",t):Zfn(he.bold.hex(p)(u),t)')
+        new_map_me = A('m=d%7,p=s?(l[m]??me.brand):me.brand;return p&&p.startsWith("\\x1b")?'
+                       'Zfn(p+u+"\\x1b[0m",t):Zfn(he.bold.hex(p)(u),t)')
+        # 按优先级尝试匹配
+        for old, new, label in [
+            (old_map_zfn_raw, new_map, "raw Zfn→Zfn"),
+            (old_map_zfn_me, new_map_me, "me Zfn→Zfn"),
+            (old_map_dun_raw, new_map, "raw dun→Zfn"),
+            (old_map_dun_me, new_map_me, "me dun→Zfn"),
+            (old_map_dun_patch, new_map_me, "me dun-patch→Zfn"),
+        ]:
+            if old in content:
+                reps.append(rep_str(content, old, new, f"Ent 渐变行映射（{label}）"))
+                break
+        else:
+            # 已经是目标形态则跳过
+            if new_map not in content and new_map_me not in content:
                 raise PatchAbort("cannot find anchor: <Ent gradient row map>（中止且不落盘）")
 
     # 一次性拼接（避免多次 23MB 大字符串拼接）
