@@ -104,3 +104,13 @@ python3 import-pi.py pi主题.json --out ~/.minimax/themes
 ## 许可
 
 MIT — 见 LICENSE。
+
+## 版本历史
+
+### v0.1.6 (2026-08-19)
+- 适配 mcode v0.1.6
+- 主题应用功能正常
+
+### v0.1.4
+- 适配 mcode v0.1.4
+- 添加 logo 渐变插桩
