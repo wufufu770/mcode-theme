@@ -853,20 +853,27 @@ def patch_cli(theme):
                                   lambda m: grad_fn, "__mcodeLogoGradient5 函数体升级"))
         # 替换 Ent 的 l 数组（兼容旧版 __mcodeLogoGradient 三段插桩：一并换为五段）
         # v0.1.4+ 变量名为 de（非旧版 me）
-        _v = rb'(?:de|me)'  # 兼容两种变量名
-        new_l = A('l=__mcodeLogoGradient5(a.length,de.wordmarkHighlight,de.brand,de.wordmarkShadow)')
+        _v = rb'(?:de|me|ce)'  # 兼容三种变量名
+        new_l = A('l=__mcodeLogoGradient5(a.length,ce.wordmarkHighlight,ce.brand,ce.wordmarkShadow)')
         new_l_me = A('l=__mcodeLogoGradient5(a.length,me.wordmarkHighlight,me.brand,me.wordmarkShadow)')
-        if new_l not in content and new_l_me not in content:
+        new_l_de = A('l=__mcodeLogoGradient5(a.length,de.wordmarkHighlight,de.brand,de.wordmarkShadow)')
+        if new_l not in content and new_l_me not in content and new_l_de not in content:
+            old_l3_ce = A('l=__mcodeLogoGradient(a.length,ce.wordmarkHighlight,ce.brand,ce.wordmarkShadow)')
             old_l3_de = A('l=__mcodeLogoGradient(a.length,de.wordmarkHighlight,de.brand,de.wordmarkShadow)')
             old_l3_me = A('l=__mcodeLogoGradient(a.length,me.wordmarkHighlight,me.brand,me.wordmarkShadow)')
-            if old_l3_de in content:
+            if old_l3_ce in content:
+                reps.append(rep_str(content, old_l3_ce, new_l, "Ent logo l-array (v3→v5, ce)"))
+            elif old_l3_de in content:
                 reps.append(rep_str(content, old_l3_de, new_l, "Ent logo l-array (v3→v5, de)"))
             elif old_l3_me in content:
                 reps.append(rep_str(content, old_l3_me, new_l, "Ent logo l-array (v3→v5, me)"))
             else:
+                old_l_ce = A('l=[ce.wordmarkHighlight,ce.wordmarkHighlight,ce.brand,ce.brand,ce.wordmarkShadow,ce.wordmarkShadow]')
                 old_l_de = A('l=[de.wordmarkHighlight,de.wordmarkHighlight,de.brand,de.brand,de.wordmarkShadow,de.wordmarkShadow]')
                 old_l_me = A('l=[me.wordmarkHighlight,me.wordmarkHighlight,me.brand,me.brand,me.wordmarkShadow,me.wordmarkShadow]')
-                if old_l_de in content:
+                if old_l_ce in content:
+                    reps.append(rep_str(content, old_l_ce, new_l, "Ent logo l-array (raw, ce)"))
+                elif old_l_de in content:
                     reps.append(rep_str(content, old_l_de, new_l, "Ent logo l-array (raw, de)"))
                 elif old_l_me in content:
                     reps.append(rep_str(content, old_l_me, new_l, "Ent logo l-array (raw, me)"))
@@ -876,28 +883,36 @@ def patch_cli(theme):
         # v0.1.4+ 使用Zfn（非旧版dun）；兼容已有 p.startsWith 补丁
         old_map_zfn_raw = A('m=d%7,p=s?l[m]??de.brand:de.brand;return Zfn(he.bold.hex(p)(u),t)')
         old_map_zfn_me = A('m=d%7,p=s?l[m]??me.brand:me.brand;return Zfn(he.bold.hex(p)(u),t)')
+        old_map_zfn_ce = A('m=d%7,p=s?l[m]??ce.brand:ce.brand;return Zfn(he.bold.hex(p)(u),t)')
         old_map_dun_raw = A('m=d%7,p=s?l[m]??de.brand:de.brand;return dun(ye.bold.hex(p)(u),t)')
         old_map_dun_me = A('m=d%7,p=s?l[m]??me.brand:me.brand;return dun(ye.bold.hex(p)(u),t)')
+        old_map_dun_ce = A('m=d%7,p=s?l[m]??ce.brand:ce.brand;return dun(pe.bold.hex(p)(u),t)')
         old_map_dun_patch = A('m=d%7,p=s?(l[m]??me.brand):me.brand;return p&&p.startsWith("\\x1b")?'
                               'dun(p+u+"\\x1b[0m",t):dun(ye.bold.hex(p)(u),t)')
+        old_map_ce_simple = A('m=d%7,p=s?l[m]??ce.brand:ce.brand;return RAn(pe.bold.hex(p)(u),t)')
         new_map = A('m=d%7,p=s?(l[m]??de.brand):de.brand;return p&&p.startsWith("\\x1b")?'
                     'Zfn(p+u+"\\x1b[0m",t):Zfn(he.bold.hex(p)(u),t)')
         new_map_me = A('m=d%7,p=s?(l[m]??me.brand):me.brand;return p&&p.startsWith("\\x1b")?'
+                       'Zfn(p+u+"\\x1b[0m",t):Zfn(he.bold.hex(p)(u),t)')
+        new_map_ce = A('m=d%7,p=s?(l[m]??ce.brand):ce.brand;return p&&p.startsWith("\\x1b")?'
                        'Zfn(p+u+"\\x1b[0m",t):Zfn(he.bold.hex(p)(u),t)')
         # 按优先级尝试匹配
         for old, new, label in [
             (old_map_zfn_raw, new_map, "raw Zfn→Zfn"),
             (old_map_zfn_me, new_map_me, "me Zfn→Zfn"),
+            (old_map_zfn_ce, new_map_ce, "ce Zfn→Zfn"),
             (old_map_dun_raw, new_map, "raw dun→Zfn"),
             (old_map_dun_me, new_map_me, "me dun→Zfn"),
+            (old_map_dun_ce, new_map_ce, "ce dun→Zfn"),
             (old_map_dun_patch, new_map_me, "me dun-patch→Zfn"),
+            (old_map_ce_simple, new_map_ce, "ce simple→Zfn"),
         ]:
             if old in content:
                 reps.append(rep_str(content, old, new, f"Ent 渐变行映射（{label}）"))
                 break
         else:
             # 已经是目标形态则跳过
-            if new_map not in content and new_map_me not in content:
+            if new_map not in content and new_map_me not in content and new_map_ce not in content:
                 raise PatchAbort("cannot find anchor: <Ent gradient row map>（中止且不落盘）")
 
     # 一次性拼接（避免多次 23MB 大字符串拼接）
