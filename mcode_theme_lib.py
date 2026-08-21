@@ -799,8 +799,7 @@ def patch_cli(theme):
     #     与任一端差 <0.122 时，段3 退化为线性中点。256 色（colorLevel<3）降级保留。
     # v0.1.4+ logo函数名为vst，使用FS.hero（非xS.hero）
     m_ent = re.search(
-        rb'function vst\(t\)\{let\{fullMinWidth:e,mediumMinWidth:r,microMinWidth:i,'
-        rb'fallbackTitle:n\}=FS\.hero,',
+        rb'hero:{fullMinWidth:\d+,mediumMinWidth:\d+,microMinWidth:\d+,fallbackTitle:[^}]*}',
         content)
     if m_ent:
         grad_fn = (
