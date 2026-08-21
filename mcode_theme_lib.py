@@ -881,9 +881,9 @@ def patch_cli(theme):
                     raise PatchAbort("cannot find anchor: <Ent logo l-array>（中止且不落盘）")
         # 每行用渐变序列号（m 取 l[m]，l 长度=行数，无需 %7；保留 fallback）
         # v0.1.4+ 使用Zfn（非旧版dun）；兼容已有 p.startsWith 补丁
-        old_map_zfn_raw = A('m=d%7,p=s?l[m]??de.brand:de.brand;return Zfn(he.bold.hex(p)(u),t)')
-        old_map_zfn_me = A('m=d%7,p=s?l[m]??me.brand:me.brand;return Zfn(he.bold.hex(p)(u),t)')
-        old_map_zfn_ce = A('m=d%7,p=s?l[m]??ce.brand:ce.brand;return Zfn(he.bold.hex(p)(u),t)')
+        old_map_zfn_raw = A('m=d%7,p=s?l[m]??de.brand:de.brand;return RAn(he.bold.hex(p)(u),t)')
+        old_map_zfn_me = A('m=d%7,p=s?l[m]??me.brand:me.brand;return RAn(he.bold.hex(p)(u),t)')
+        old_map_zfn_ce = A('m=d%7,p=s?l[m]??ce.brand:ce.brand;return RAn(he.bold.hex(p)(u),t)')
         old_map_dun_raw = A('m=d%7,p=s?l[m]??de.brand:de.brand;return dun(ye.bold.hex(p)(u),t)')
         old_map_dun_me = A('m=d%7,p=s?l[m]??me.brand:me.brand;return dun(ye.bold.hex(p)(u),t)')
         old_map_dun_ce = A('m=d%7,p=s?l[m]??ce.brand:ce.brand;return dun(pe.bold.hex(p)(u),t)')
@@ -891,11 +891,11 @@ def patch_cli(theme):
                               'dun(p+u+"\\x1b[0m",t):dun(ye.bold.hex(p)(u),t)')
         old_map_ce_simple = A('m=d%7,p=s?l[m]??ce.brand:ce.brand;return RAn(pe.bold.hex(p)(u),t)')
         new_map = A('m=d%7,p=s?(l[m]??de.brand):de.brand;return p&&p.startsWith("\\x1b")?'
-                    'Zfn(p+u+"\\x1b[0m",t):Zfn(he.bold.hex(p)(u),t)')
+                    'RAn(p+u+"\\x1b[0m",t):RAn(he.bold.hex(p)(u),t)')
         new_map_me = A('m=d%7,p=s?(l[m]??me.brand):me.brand;return p&&p.startsWith("\\x1b")?'
-                       'Zfn(p+u+"\\x1b[0m",t):Zfn(he.bold.hex(p)(u),t)')
+                       'RAn(p+u+"\\x1b[0m",t):RAn(he.bold.hex(p)(u),t)')
         new_map_ce = A('m=d%7,p=s?(l[m]??ce.brand):ce.brand;return p&&p.startsWith("\\x1b")?'
-                       'Zfn(p+u+"\\x1b[0m",t):Zfn(he.bold.hex(p)(u),t)')
+                       'RAn(p+u+"\\x1b[0m",t):RAn(he.bold.hex(p)(u),t)')
         # 按优先级尝试匹配
         for old, new, label in [
             (old_map_zfn_raw, new_map, "raw Zfn→Zfn"),
