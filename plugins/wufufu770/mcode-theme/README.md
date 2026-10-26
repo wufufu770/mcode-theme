@@ -3,8 +3,11 @@
 MiniMax Code CLI 主题管理插件（Agent Plugins / agent-plugins.org 标准）。
 
 让用户自定义 MiniMax Code CLI（mcode）的界面主题：22 个内置主题（经典社区配色）、
-五段渐变 Logo（上浅下深）、一键应用/恢复（备份缺失自动从 npm 官方包还原）、
-状态查看、Web 可视化配置器、主题包导出/导入、12 条纪律自动校验、mcode 升级检测。
+五段渐变 Logo（上浅下深）、一键应用/回落、状态查看、Web 可视化配置器、
+主题包导出/导入、12 条纪律自动校验、mcode 升级检测。
+
+**v0.3.0 起基于 mcode 0.7.0 的原生主题机制**（写 `~/.minimax/tui/themes/*.json`
++ `~/.minimax/tui/tui-settings.json`），不再改写 `cli.js`，切换主题无需重启。
 
 ## 功能
 
@@ -12,7 +15,7 @@ MiniMax Code CLI 主题管理插件（Agent Plugins / agent-plugins.org 标准�
 - `mcode-theme web` — Web 可视化配置器（实时预览 + 真实会话预览 + 主题包导入导出 + 状态卡）
 - `mcode-theme install <theme.json|URL>` — 校验（12 条纪律）后安装
 - `mcode-theme update` — 检测 mcode 升级并提示重新应用
-- `mcode-theme restore` — 恢复官方（备份缺失自动从 npm 全局包还原）
+- `mcode-theme restore` — 回落到 mcode 内置默认主题
 - 22 个内置主题全部通过纪律校验（docs/validation-report.md）
 
 ## 安装
@@ -27,14 +30,14 @@ cp mcode-theme mcode_theme_lib.py web.py logo_styles.py validate-themes.py ~/.lo
 cp -r web ~/.local/bin/web/
 ```
 
-需要 Python 3.8+。`apply` 后重启 mcode 生效。
+需要 Python 3.8+。`apply` 后**立即生效**（mcode 热重载主题目录，无需重启）。
 
 ## 使用
 
 ```bash
 mcode-theme apply synthwave      # 应用主题
 mcode-theme list                 # 列出主题
-mcode-theme restore              # 恢复官方
+mcode-theme restore              # 回落到内置默认主题
 mcode-theme web                  # Web 配置器 → http://localhost:8598
 mcode-theme update               # 检测 mcode 升级
 ```
