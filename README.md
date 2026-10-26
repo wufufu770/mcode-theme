@@ -6,12 +6,15 @@ MiniMax Code CLI（mcode）主题管理工具：安装、切换、恢复主题�
 ## 功能
 
 - **主题库**：22 个内置主题（经典社区配色）
-- **一键应用/恢复**：`apply` 打补丁切换主题，`restore` 恢复官方默认
+- **一键应用/恢复**：`apply` 切换主题，`restore` 回落到 mcode 内置默认
 - **Web 可视化配置器**：实时预览、真实会话预览、主题包导出/导入、状态卡片
 - **主题包**：JSON 格式分享/导入（格式校验 + 颜色键校验）
 - **渐变 Logo**：五段垂直渐变（上浅下深），现代终端自动 truecolor，256 色降级
 - **校验**：主题安装前自动校验（颜色亮度/色相/饱和度/对比度/渐变区分度）
 - **升级检测**：`update` 检测 mcode 版本变化并提示重新应用
+
+> **v0.3.0 起基于 mcode 0.7.0 的原生主题机制**（不再改写 `cli.js`），
+> 详见「mcode 0.7.0 原生主题机制」。旧版 mcode（< 0.7.0）仍走打补丁的老路径。
 
 ## 安装
 
@@ -84,28 +87,82 @@ python3 import-pi.py pi主题.json --out ~/.minimax/themes
 
 ## 主题格式
 
-主题 JSON 位于 `~/.minimax/themes/<name>.json`：
+### 主题库格式（mcode-theme 自有，可编辑源）
+
+装在 `~/.local/share/mcode-themes/<name>.json`，是 Web 配置器的编辑对象，
+比 mcode 原生 schema 多两个键（`ansi` 降级色、`logo` / `logoStyle`）：
+
+```json
+{
+  "name": "synthwave",
+  "appearance": "dark",
+  "colors": { "brand": "#FF6B6B", "...": "..." },
+  "ansi":   { "brand": "cyanBright", "...": "..." },
+  "syntax": { "blue": "#89B4FA", "...": "..." },
+  "logo": "#FF6B6B"
+}
+```
+
+### mcode 原生格式（mcode 实际读取）
+
+`mcode-theme apply` 会把主题库转换成 mcode 原生 schema，写到
+**`~/.minimax/tui/themes/<name>.json`** —— 这是 mcode 0.7.0 扫描的目录，
+schema 严格（`additionalProperties: false`），多一个键就会被 mcode 拒绝。
 
 ```json
 {
   "name": "synthwave",
   "appearance": "dark",
   "colors": {
-    "brand": "#FF6B6B", "accent": "#FF6B6B", "signal": "#FF6B6B",
-    "wordmarkHighlight": "#FF9494", "wordmarkShadow": "#966911",
-    "orbit": "#FFD93D", "userMessageBg": "#2A1E3F",
+    "brand": "#FF6B6B", "wordmarkHighlight": "#FF9494", "wordmarkShadow": "#966911",
+    "signal": "#FF6B6B", "orbit": "#FFD93D", "accent": "#FF6B6B",
+    "markdownHeading": "#CBA6F7", "markdownCode": "#A6E3A1", "markdownLink": "#89B4FA",
+    "userMessageBg": "#2A1E3F", "diffAddedBg": "#3A2F44", "diffRemovedBg": "#452A3A",
     "text": "#F8F0FF", "muted": "#B8A8D8", "dim": "#8A7BA8",
     "border": "#4A3A6A", "line": "#8A7BA8",
     "success": "#4ADE80", "warning": "#FFC340", "error": "#FF5E6C"
-  }
+  },
+  "syntax": { "blue": "#89B4FA", "...": "..." }
 }
 ```
+
+- UI 键 **20 个**（mcode 0.7.0 新增 `markdownHeading` / `markdownCode` /
+  `markdownLink` / `diffAddedBg` / `diffRemovedBg`），语法键 **13 个**
+- 主题库里的旧主题没有这 5 个新键，转换时从主题自身调色板派生：
+  `markdownHeading ← syntax.mauve`、`markdownCode ← syntax.green`、
+  `markdownLink ← syntax.blue`、`diffAddedBg/diffRemovedBg ← success/error 混色`
+- 主题名必须匹配 `^[a-z0-9][a-z0-9._-]{0,63}$`；`minimax` / `midnight` /
+  `graphite` / `aurora` 是 mcode 内置 id，同名自定义文件会被忽略
+
+## mcode 0.7.0 原生主题机制
+
+mcode 0.7.0 起内置了主题系统，本工具**不再改写 `cli.js`**：
+
+| 概念 | 位置 |
+|---|---|
+| 自定义主题文件 | `~/.minimax/tui/themes/*.json` |
+| 当前选中项 | `~/.minimax/tui/tui-settings.json` → `{"theme": "<id>"}` |
+| 外观覆盖 | `{"theme": "<id>/dark"}` 或 `{"theme": "<id>/light"}` |
+| 内置主题 | `minimax` / `midnight` / `graphite` / `aurora`（另有 `/theme` 命令切换） |
+| 本工具元数据 | `~/.minimax/mcode-theme/`（放在 themes/ 外，避免被 mcode 扫描） |
+
+mcode 监听 `themes/` 目录并热重载，**切换主题无需重启**。
+
+`mcode-theme restore` = 清除 `tui-settings.json` 的 `theme` 字段，mcode 回落到内置主题。
 
 ## 许可
 
 MIT — 见 LICENSE。
 
 ## 版本历史
+
+### v0.3.0 (2026-10-26)
+- **适配 mcode 0.7.0 原生主题机制**：不再改写 `cli.js`，改为写
+  `~/.minimax/tui/themes/*.json` + 设置 `tui-settings.json`
+- 支持 mcode 0.7.0 新增的 5 个 UI 键（markdown / diff），旧主题自动派生
+- 主题库与原生目录分离：`~/.local/share/mcode-themes/`（可编辑源）↔
+  `~/.minimax/tui/themes/`（mcode 读取）
+- Web 配置器改用原生写入，支持实时预览与热重载
 
 ### v0.1.6 (2026-08-19)
 - 适配 mcode v0.1.6

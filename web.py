@@ -110,8 +110,8 @@ class ThemeServer(BaseHTTPRequestHandler):
         return self._ok(mcode_theme_lib.current_status())
 
     def _api_theme(self, name):
-        path = mcode_theme_lib.theme_path(name)
-        if not os.path.isfile(path):
+        path = mcode_theme_lib.find_theme_file(name)
+        if not path or not os.path.isfile(path):
             self._err(f"theme '{name}' not found")
             return
         with open(path, "r", encoding="utf-8") as f:
@@ -135,19 +135,19 @@ class ThemeServer(BaseHTTPRequestHandler):
             return
         name = theme.get("name") or "live-edit"
         appearance = theme.get("appearance", "dark")
-        tmp = os.path.join(mcode_theme_lib.THEME_DIR, f".live-{os.getpid()}.json")
-        os.makedirs(mcode_theme_lib.THEME_DIR, exist_ok=True)
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(theme, f, ensure_ascii=False)
         try:
-            parsed = mcode_theme_lib.load_theme(tmp)
+            parsed = mcode_theme_lib.load_theme_dict(theme)
         except Exception as e:
-            os.remove(tmp)
             self._err(f"主题校验失败: {e}")
             return
-        os.remove(tmp)
         try:
-            mcode_theme_lib.patch_cli(parsed)
+            native = mcode_theme_lib.to_native_theme(parsed)
+            err = mcode_theme_lib.validate_native_theme(native)
+            if err:
+                self._err(f"不符合 mcode 原生 schema: {err}")
+                return
+            mcode_theme_lib.write_native_theme(native)
+            mcode_theme_lib._write_settings({"theme": native["name"]})
         except Exception as e:
             self._err(f"应用失败: {e}")
             return
@@ -160,9 +160,21 @@ class ThemeServer(BaseHTTPRequestHandler):
             self._err("missing name or theme.colors")
             return
         theme["name"] = name
-        path = mcode_theme_lib.theme_path(name)
-        with open(path, "w", encoding="utf-8") as f:
+        os.makedirs(mcode_theme_lib.LIB_DIR, exist_ok=True)
+        lib_path = os.path.join(mcode_theme_lib.LIB_DIR, f"{name}.json")
+        with open(lib_path, "w", encoding="utf-8") as f:
             json.dump(theme, f, ensure_ascii=False, indent=2)
+        try:
+            parsed = mcode_theme_lib.load_theme_dict(theme)
+            native = mcode_theme_lib.to_native_theme(parsed)
+            err = mcode_theme_lib.validate_native_theme(native)
+            if err:
+                self._err(f"不符合 mcode 原生 schema: {err}")
+                return
+            mcode_theme_lib.write_native_theme(native)
+        except Exception as e:
+            self._err(f"保存原生主题失败: {e}")
+            return
         self._ok({"ok": True, "saved": name})
 
     def _api_plan(self, payload):
@@ -191,9 +203,10 @@ class ThemeServer(BaseHTTPRequestHandler):
             self._err("missing name")
             return
         try:
-            path = mcode_theme_lib.theme_path(name)
-            if os.path.isfile(path):
-                os.remove(path)
+            for path in (mcode_theme_lib.theme_path(name),
+                         os.path.join(mcode_theme_lib.LIB_DIR, f"{name}.json")):
+                if os.path.isfile(path):
+                    os.remove(path)
             cur = mcode_theme_lib.current()
             if cur and cur.get("name") == name:
                 mcode_theme_lib.restore()

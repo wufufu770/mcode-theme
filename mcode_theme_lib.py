@@ -118,16 +118,56 @@ def _node_executable_name():
 MCODE_LIB = _mcode_lib_dir()
 CLI_PATH = os.path.join(MCODE_LIB, "cli.js")
 BACKUP_PATH = os.path.join(MCODE_LIB, "cli.js.minimax-original")
-THEME_DIR = os.path.join(_mcode_data_dir(), "themes")
-CURRENT_FILE = os.path.join(THEME_DIR, ".current-theme.json")
-LAST_APPLIED_FILE = os.path.join(THEME_DIR, ".last-applied.json")
+MCODE_DATA_DIR = _mcode_data_dir()
+TUI_DIR = os.path.join(MCODE_DATA_DIR, "tui")
+# 原生主题目录：mcode 会扫描该目录下全部 *.json（schema 严格校验）
+THEME_DIR = os.path.join(TUI_DIR, "themes")
+# mcode 记录当前选中主题的设置文件
+SETTINGS_FILE = os.path.join(TUI_DIR, "tui-settings.json")
+# 本工具的元数据目录（放在 themes/ 之外，避免被 mcode 当主题扫描）
+STATE_DIR = os.path.join(MCODE_DATA_DIR, "mcode-theme")
 TOOL_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def _resolve_lib_dir():
+    """主题库目录（mcode-theme 自有格式，供 Web 配置器编辑）。
+
+    优先级：
+      1) ~/.local/share/mcode-themes          （install.sh 安装位置）
+      2) <repo>/themes                        （直接从源码仓库运行）
+      3) ~/.local/share/mcode-themes          （兜底）
+    """
+    candidates = [
+        os.path.join(os.path.dirname(TOOL_DIR), "share", "mcode-themes"),
+        os.path.join(os.path.dirname(TOOL_DIR), "mcode-themes", "themes"),
+        os.path.join(os.path.expanduser("~"), ".local", "share", "mcode-themes"),
+    ]
+    for c in candidates:
+        if os.path.isdir(c):
+            return c
+    return candidates[-1]
+
+
+LIB_DIR = _resolve_lib_dir()
+CURRENT_FILE = os.path.join(STATE_DIR, "current-theme.json")
+LAST_APPLIED_FILE = os.path.join(STATE_DIR, "last-applied.json")
 
 UI_KEYS = [
     "brand", "wordmarkHighlight", "wordmarkShadow", "signal", "orbit",
-    "accent", "userMessageBg", "text", "muted", "dim", "border", "line",
+    "accent", "markdownHeading", "markdownCode", "markdownLink",
+    "userMessageBg", "diffAddedBg", "diffRemovedBg",
+    "text", "muted", "dim", "border", "line",
     "success", "warning", "error",
 ]
+
+# mcode >= 0.7.0 原生 schema 允许的键（与 UI_KEYS 同序）
+NATIVE_UI_KEYS = list(UI_KEYS)
+# mcode >= 0.7.0 新增的 5 个 UI 键（旧主题没有，需从调色板派生）
+NATIVE_NEW_UI_KEYS = ["markdownHeading", "markdownCode", "markdownLink",
+                      "diffAddedBg", "diffRemovedBg"]
+NATIVE_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$", re.I)
+# mcode 内置主题 id：同名自定义文件会被 mcode 忽略
+BUILTIN_THEME_IDS = ["minimax", "midnight", "graphite", "aurora"]
 
 SYNTAX_KEYS = [
     "blue", "flamingo", "green", "mauve", "overlay2", "peach", "pink",
@@ -138,14 +178,22 @@ DEFAULT_UI = {
     "dark": {
         "brand": "#68C0FF", "wordmarkHighlight": "#93D2FF", "wordmarkShadow": "#3DAEFF",
         "signal": "#68C0FF", "orbit": "#1CCDD2", "accent": "#68C0FF",
-        "userMessageBg": "#262626", "text": "#EDEDED", "muted": "#ADADAD",
+        "markdownHeading": "#CBA6F7", "markdownCode": "#A6E3A1",
+        "markdownLink": "#68C0FF",
+        "userMessageBg": "#262626", "diffAddedBg": "#213A2B",
+        "diffRemovedBg": "#4A221D",
+        "text": "#EDEDED", "muted": "#ADADAD",
         "dim": "#666666", "border": "#303030", "line": "#666666",
         "success": "#28C567", "warning": "#FFC340", "error": "#FF5E6C",
     },
     "light": {
         "brand": "#0094FC", "wordmarkHighlight": "#3DAEFF", "wordmarkShadow": "#0077D9",
         "signal": "#0094FC", "orbit": "#00767D", "accent": "#0094FC",
-        "userMessageBg": "#F5F5F5", "text": "#303030", "muted": "#666666",
+        "markdownHeading": "#8839EF", "markdownCode": "#267A3F",
+        "markdownLink": "#0066CC",
+        "userMessageBg": "#F5F5F5", "diffAddedBg": "#DAFBE1",
+        "diffRemovedBg": "#FFEBE9",
+        "text": "#303030", "muted": "#666666",
         "dim": "#949494", "border": "#EDEDED", "line": "#949494",
         "success": "#008635", "warning": "#916300", "error": "#E31937",
     },
@@ -477,19 +525,214 @@ def rep_str(content, old, new, label):
     return (i, i + len(old), new)
 
 
+
+
+# ================================================================
+# 原生主题后端（mcode >= 0.7.0）
+#   主题文件： <dataDir>/tui/themes/<name>.json
+#   选中项：   <dataDir>/tui/tui-settings.json  {"theme": "<id>"}
+#   mcode 监听 themes/ 目录，热重载，无需重启。
+# ================================================================
+
+def _rgb(h):
+    h = h.lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def _blend(fg, bg, ratio):
+    """把 fg 按 ratio 混到 bg 上，返回 #RRGGBB。"""
+    f, b = _rgb(fg), _rgb(bg)
+    return "#%02X%02X%02X" % tuple(
+        max(0, min(255, int(round(b[i] + (f[i] - b[i]) * ratio)))) for i in range(3))
+
+
+def _read_settings():
+    try:
+        with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _write_settings(patch):
+    """原子更新 tui-settings.json（值为 None 表示删除该键）。"""
+    data = _read_settings()
+    for k, v in patch.items():
+        if v is None:
+            data.pop(k, None)
+        else:
+            data[k] = v
+    os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
+    tmp = "%s.%d.tmp" % (SETTINGS_FILE, os.getpid())
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    os.replace(tmp, SETTINGS_FILE)
+    return data
+
+
+def to_native_theme(theme):
+    """mcode-theme 主题 → mcode 原生主题对象（严格 schema）。
+
+    - 只保留 native schema 允许的键（ansi/logo/logoStyle 会被 mcode 拒绝）
+    - 0.7.0 新增的 5 个 UI 键从主题自身调色板派生
+    """
+    app = theme["appearance"]
+    ui = theme.get("colors") or {}
+    syn = theme.get("syntax") or {}
+    colors = {}
+    for k in NATIVE_UI_KEYS:
+        if k in ui and isinstance(ui[k], str) and HEX_RE.match(ui[k]):
+            colors[k] = ui[k]
+    # 派生 markdown / diff 键
+    colors["markdownHeading"] = syn.get("mauve") or colors.get("accent") \
+        or DEFAULT_UI[app]["markdownHeading"]
+    colors["markdownCode"] = syn.get("green") or colors.get("success") \
+        or DEFAULT_UI[app]["markdownCode"]
+    colors["markdownLink"] = syn.get("blue") or colors.get("brand") \
+        or DEFAULT_UI[app]["markdownLink"]
+    bg = colors.get("userMessageBg") or DEFAULT_UI[app]["userMessageBg"]
+    colors["diffAddedBg"] = _blend(colors.get("success") or DEFAULT_UI[app]["success"],
+                                   bg, 0.18)
+    colors["diffRemovedBg"] = _blend(colors.get("error") or DEFAULT_UI[app]["error"],
+                                     bg, 0.18)
+    syntax = {}
+    for k in SYNTAX_KEYS:
+        v = syn.get(k)
+        if isinstance(v, str) and HEX_RE.match(v):
+            syntax[k] = v
+    native = {"name": theme["name"], "appearance": app,
+              "colors": colors, "syntax": syntax}
+    if theme.get("label"):
+        native["label"] = theme["label"]
+    if theme.get("description"):
+        native["description"] = theme["description"]
+    return native
+
+
+def validate_native_theme(native):
+    """按 mcode 原生 schema 校验（与 0.7.0 内置 Ajv schema 等价）。"""
+    if not isinstance(native, dict):
+        return "theme must be a JSON object"
+    name = native.get("name")
+    if not isinstance(name, str) or not NATIVE_NAME_RE.match(name):
+        return "name must match ^[a-z0-9][a-z0-9._-]{0,63}$"
+    if name.lower() in BUILTIN_THEME_IDS:
+        return "\"%s\" is a built-in theme id and is ignored" % name
+    if native.get("appearance") not in ("dark", "light"):
+        return "appearance must be 'dark' or 'light'"
+    for key, allowed in (("colors", NATIVE_UI_KEYS), ("syntax", SYNTAX_KEYS)):
+        block = native.get(key)
+        if block is None:
+            continue
+        if not isinstance(block, dict):
+            return "%s must be an object" % key
+        for k, v in block.items():
+            if k not in allowed:
+                return "%s.%s is not an allowed key" % (key, k)
+            if not isinstance(v, str) or not HEX_RE.match(v):
+                return "%s.%s must be a hex color like #RRGGBB" % (key, k)
+    return None
+
+
+def write_native_theme(native):
+    """写入原生主题文件（mcode 会自动发现并热重载）。"""
+    err_msg = validate_native_theme(native)
+    if err_msg:
+        err("native theme invalid: %s" % err_msg)
+    os.makedirs(THEME_DIR, exist_ok=True)
+    dest = os.path.join(THEME_DIR, "%s.json" % native["name"])
+    tmp = "%s.%d.tmp" % (dest, os.getpid())
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(native, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    os.replace(tmp, dest)
+    return dest
+
+
+def native_theme_names():
+    if not os.path.isdir(THEME_DIR):
+        return []
+    out = []
+    for fn in os.listdir(THEME_DIR):
+        if not fn.endswith(".json") or fn.startswith("."):
+            continue
+        out.append(fn[:-5])
+    return sorted(out)
+
+
+def lib_theme_names():
+    if not os.path.isdir(LIB_DIR):
+        return []
+    out = []
+    for fn in os.listdir(LIB_DIR):
+        if not fn.endswith(".json") or fn.startswith("."):
+            continue
+        out.append(fn[:-5])
+    return sorted(out)
+
+
+def find_theme_file(name):
+    """在原生目录与主题库中查找主题文件（原生目录优先）。"""
+    for d in (THEME_DIR, LIB_DIR):
+        p = os.path.join(d, "%s.json" % name)
+        if os.path.isfile(p):
+            return p
+    return None
+
+
+def selected_theme_id():
+    """当前 mcode 选中的主题 id（含 /dark|/light 外观覆盖）。"""
+    v = _read_settings().get("theme")
+    if not isinstance(v, str):
+        return None
+    v = v.strip()
+    return v or None
+
+
+def record_applied(theme_name, native=None):
+    """记录 apply 元数据（不再依赖 cli.js 指纹）。"""
+    try:
+        os.makedirs(STATE_DIR, exist_ok=True)
+        with open(CURRENT_FILE, "w", encoding="utf-8") as f:
+            json.dump({"name": theme_name,
+                       "appearance": (native or {}).get("appearance"),
+                       "time": int(__import__("time").time())},
+                      f, indent=2, ensure_ascii=False)
+        with open(LAST_APPLIED_FILE, "w", encoding="utf-8") as f:
+            json.dump({"theme": theme_name,
+                       "time": int(__import__("time").time()),
+                       "mcodeVersion": cli_fingerprint().get("version")},
+                      f, indent=2, ensure_ascii=False)
+    except OSError:
+        pass
+
+
+
 def load_theme(path):
     if not os.path.isfile(path):
         err(f"theme file not found: {path}")
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
+    return load_theme_dict(data, path)
+
+
+def load_theme_dict(data, path=None):
+    """解析主题对象（兼容 mcode 原生 20 键格式与旧版 15 键格式）。"""
     if not isinstance(data, dict):
         err("theme must be a JSON object")
-    name = data.get("name") or os.path.splitext(os.path.basename(path))[0]
+    name = data.get("name") or (os.path.splitext(os.path.basename(path))[0]
+                                 if path else None)
+    if not name:
+        err("theme must have a 'name'")
     appearance = data.get("appearance", "dark")
     if appearance not in ("dark", "light"):
         err("theme 'appearance' must be 'dark' or 'light'")
 
-    # UI colors
+    # UI colors（兼容 mcode 原生 20 键与旧版 15 键）
     colors = data.get("colors") or {}
     merged_ui = dict(DEFAULT_UI[appearance])
     unknown = []
@@ -582,9 +825,9 @@ def cli_sha256():
 
 
 def record_last_applied(theme_name):
-    """apply 时记录 cli.js SHA256 指纹（~/.minimax/themes/.last-applied.json）"""
+    """apply 时记录元数据（原生机制：~/.minimax/mcode-theme/.last-applied.json）"""
     try:
-        os.makedirs(THEME_DIR, exist_ok=True)
+        os.makedirs(STATE_DIR, exist_ok=True)
         data = {
             "fingerprint": cli_sha256(),
             "theme": theme_name,
@@ -597,7 +840,7 @@ def record_last_applied(theme_name):
 
 
 def update_check():
-    """`mcode-theme update`：指纹一致 → 已是最新；不一致 → 提示重新 apply"""
+    """`mcode-theme update`：检查 mcode 版本变化（原生机制无需重新 apply）。"""
     if not os.path.isfile(LAST_APPLIED_FILE):
         print("尚未记录 apply 指纹（~/.minimax/themes/.last-applied.json 不存在）。")
         print("运行一次 mcode-theme apply <name> 后，即可用本命令检测 mcode 升级。")
@@ -608,32 +851,25 @@ def update_check():
     except (json.JSONDecodeError, OSError):
         print("warning: .last-applied.json 无法解析，请重新 apply 一次。")
         return
-    cur = cli_sha256()
-    if cur is None:
-        print(f"warning: 无法读取 cli.js（{CLI_PATH}），跳过检测。")
-        return
     theme_name = data.get("theme") or "(unknown)"
-    if cur == data.get("fingerprint"):
-        print(f"已是最新（cli.js SHA256 指纹一致，主题 '{theme_name}' 仍有效）")
+    ver = cli_fingerprint().get("version")
+    old_ver = data.get("mcodeVersion")
+    if ver and old_ver and ver != old_ver:
+        print(f"mcode 已升级（{old_ver} -> {ver}）；"
+              f"原生主题无需重新 apply，如需刷新可执行 mcode-theme apply {theme_name}")
     else:
-        print(f"mcode 已升级（cli.js SHA256 指纹变化），"
-              f"运行 mcode-theme apply {theme_name} 重新应用。")
+        print(f"已是最新（主题 '{theme_name}' 仍有效）")
 
 
 def check_stale():
-    """检测 mcode 是否被升级覆盖（版本变了 或 md5 变了但非本工具修改）"""
+    """检测 mcode 升级或主题文件缺失（原生机制）"""
     fp = cli_fingerprint()
     cur = current()
     if not cur:
         return
-    old_md5 = cur.get("_cliMd5")
-    old_ver = cur.get("_cliVersion")
-    ver_changed = old_ver and fp["version"] and old_ver != fp["version"]
-    md5_changed = old_md5 and fp["md5"] and old_md5 != fp["md5"]
-    if ver_changed or (md5_changed and not ver_changed and os.path.isfile(BACKUP_PATH)
-                       and cli_fingerprint_matches_backup()):
-        print(f"warning: mcode 已更新（{old_ver or '?'} -> {fp['version'] or '?'}），"
-              f"cli.js 已被覆盖，需要重新应用主题: mcode-theme apply {cur['name']}")
+    if not find_theme_file(cur["name"]):
+        print(f"warning: 主题文件 '{cur['name']}' 不存在，需要重新安装："
+              f"mcode-theme apply {cur['name']}")
 
 
 def cli_fingerprint_matches_backup():
@@ -1055,17 +1291,19 @@ def install_from_source(source):
         for w in fails:
             print(f"    - {w}", file=sys.stderr)
         sys.exit(1)
-    os.makedirs(THEME_DIR, exist_ok=True)
-    dest = os.path.join(THEME_DIR, f"{theme['name']}.json")
-    with open(dest, "w", encoding="utf-8") as f:
-        json.dump(theme, f, indent=2)
+    native = to_native_theme(theme)
+    err_msg = validate_native_theme(native)
+    if err_msg:
+        print(f"error: 主题不符合 mcode 原生 schema：{err_msg}", file=sys.stderr)
+        sys.exit(1)
+    dest = write_native_theme(native)
     failed = {int(m.group(1)) for w in fails if (m := re.match(r"纪律(\d+)", w))}
     n = 13 - len(failed)  # 纪律 0-12 共 13 项
     print(f"已安装 {theme['name']}（{n}/{13} 纪律通过）→ mcode-theme apply {theme['name']}")
-    print(f"saved theme to {dest}")
+    print(f"saved native theme to {dest}")
 
 
-CACHE_DIR = os.path.join(THEME_DIR, ".cache")
+CACHE_DIR = os.path.join(STATE_DIR, "cache")
 CACHE_MAX = 3  # LRU：最多保留 3 个主题的 patch 结果（23MB×3 ≈ 69MB）
 
 
@@ -1132,44 +1370,40 @@ def _write_theme_cache(name, content):
 
 
 def apply(name):
-    path = os.path.join(THEME_DIR, f"{name}.json")
-    if not os.path.isfile(path):
-        err(f"theme '{name}' not found in {THEME_DIR}")
+    """应用主题（原生机制）：写 <dataDir>/tui/themes/<name>.json + 设置选中项。"""
+    path = find_theme_file(name)
+    if not path:
+        err(f"theme '{name}' not found in {THEME_DIR} or {LIB_DIR}")
     theme = load_theme(path)
-    # 幂等快速路径：目标主题与已应用内容一致（cli.js 指纹匹配）→ 秒回
-    if os.path.isfile(LAST_APPLIED_FILE):
-        try:
-            with open(LAST_APPLIED_FILE, "r", encoding="utf-8") as f:
-                rec = json.load(f)
-            if rec.get("theme") == name and rec.get("fingerprint") == cli_sha256():
-                print(f"applied theme '{name}'（已是最新，内容未变，跳过验证）")
-                return
-        except (json.JSONDecodeError, OSError):
-            pass
-    # 缓存重放：该主题此前 patch 过且基线（官方备份）未变 → 直接写回缓存内容
-    base = _safe_cache_name(name)
-    cached_js = os.path.join(CACHE_DIR, base + ".js")
-    cached_meta = os.path.join(CACHE_DIR, base + ".json")
-    if os.path.isfile(cached_js) and os.path.isfile(cached_meta):
-        try:
-            with open(cached_meta, "r", encoding="utf-8") as f:
-                m = json.load(f)
-            if m.get("baseline") == _backup_sha256():
-                with open(cached_js, "rb") as f:
-                    cached = f.read()
-                with open(CLI_PATH, "wb") as f:
-                    f.write(cached)
-                _record_apply_state(theme)
-                print(f"applied theme '{name}'（缓存重放，跳过 patch 与校验）")
-                return
-        except (json.JSONDecodeError, OSError):
-            pass
-    patch_cli(theme)
-    print(f"applied theme '{name}'")
+    native = to_native_theme(theme)
+    dest = write_native_theme(native)
+    _write_settings({"theme": name})
+    record_applied(name, native)
+    print(f"applied theme '{name}' -> {dest}")
+    print(f"selected in {SETTINGS_FILE}")
+    return native
+    # 原生机制无需 patch cli.js，上面已写文件 + 设置选中项
 
 
 def restore():
-    """恢复官方默认主题（加固）：
+    """恢复官方默认主题（原生机制）：清除 tui-settings.json 的 theme 字段。
+
+    mcode 会回落到内置 minimax 主题；已安装的主题文件保留，便于再次 apply。
+    """
+    _write_settings({"theme": None})
+    for p in (CURRENT_FILE, LAST_APPLIED_FILE):
+        try:
+            if os.path.exists(p):
+                os.remove(p)
+        except OSError:
+            pass
+    print("restored official default theme（已清除 %s 的 theme 字段）" % SETTINGS_FILE)
+    return
+
+
+def _restore_legacy():
+    """旧版（patch cli.js）恢复流程，仅供 mcode < 0.7.0 使用。
+    恢复官方默认主题（加固）：
     1) 本地备份存在 → 用备份恢复（写前校验为官方原版）
     2) 备份缺失 → `npm root -g @minimax-ai/code` 定位 npm 全局包内 cli.js 还原
        （写前校验与 npm 包一致：官方主题块齐全且无注入标记），并重建备份
@@ -1233,6 +1467,11 @@ def restore():
     print(f"restored official default theme（来源：{source_desc}）")
 
 
+# ================================================================
+# 原生机制入口
+# ================================================================
+
+
 def _npm_global_cli_path():
     """`npm root -g @minimax-ai/code` 定位 npm 全局包内 cli.js。
     返回 (cli_path|None, 失败原因|None)。"""
@@ -1270,24 +1509,39 @@ def _is_official_cli(content):
 
 def list_themes():
     print("Installed themes:")
-    if os.path.isdir(THEME_DIR):
-        for fn in sorted(os.listdir(THEME_DIR)):
-            if fn.endswith(".json") and not fn.startswith("."):
-                print(f"  - {fn[:-5]}")
-    print("Built-in: dark, light")
+    for n in native_theme_names():
+        print(f"  - {n}")
+    lib = [n for n in lib_theme_names() if n not in native_theme_names()]
+    if lib:
+        print("Library (not yet installed):")
+        for n in lib:
+            print(f"  - {n}")
+    print("Built-in (mcode): %s" % ", ".join(BUILTIN_THEME_IDS))
     cur = current()
     if cur:
-        line = f"Current: {cur['name']} ({cur['appearance']})"
-        if cur.get("planTheme"):
-            line += f" | Plan mode: {cur['planTheme']}"
+        line = f"Current: {cur['name']}"
+        if cur.get("appearance"):
+            line += f" ({cur['appearance']})"
         print(line)
 
 
 def current():
-    if os.path.isfile(CURRENT_FILE):
-        with open(CURRENT_FILE) as f:
-            return json.load(f)
-    return None
+    """当前选中的主题（读 mcode 的 tui-settings.json）。"""
+    tid = selected_theme_id()
+    if not tid:
+        return None
+    base = tid.split("/")[0]
+    app = tid.split("/")[1] if "/" in tid else None
+    if app is None:
+        p = find_theme_file(base)
+        if p:
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    app = json.load(f).get("appearance")
+            except (OSError, ValueError):
+                app = None
+    rec = {"name": base, "appearance": app, "planTheme": None, "_raw": tid}
+    return rec
 
 
 def current_status():
@@ -1300,24 +1554,17 @@ def current_status():
               "appliedAtMs": None, "state": "none"}
     if not cur:
         return status
-    fp = None
+    # 原生机制：状态由主题文件是否存在 + mcode 版本决定
+    p = find_theme_file(cur["name"])
+    status["state"] = "ok" if p and os.path.isfile(p) else "stale"
     applied_at = None
     if os.path.isfile(LAST_APPLIED_FILE):
         try:
             with open(LAST_APPLIED_FILE, "r", encoding="utf-8") as f:
                 rec = json.load(f)
-            fp = rec.get("fingerprint")
             applied_at = rec.get("time")
         except (json.JSONDecodeError, OSError):
             pass
-    if fp:
-        status["state"] = "ok" if cli_sha256() == fp else "stale"
-    elif cur.get("_cliMd5"):
-        # 兼容旧记录（md5 指纹）
-        fp = cli_fingerprint()
-        status["state"] = "ok" if fp["md5"] == cur["_cliMd5"] else "stale"
-    else:
-        status["state"] = "stale"
     if applied_at:
         status["appliedAtMs"] = int(applied_at) * 1000
     return status
@@ -1339,42 +1586,35 @@ def print_current(status=None):
     else:
         print("  应用时间: 未知")
     if status["state"] == "ok":
-        print("  状态: 生效")
+        print("  状态: 生效（原生主题，mcode 已识别）")
     else:
-        print(f"  状态: 需重新 apply（cli.js 指纹已变更，运行 mcode-theme apply {status['name']}）")
-    plan = status.get("planTheme")
-    if plan:
-        print(f"Plan 模式: {plan}（Shift+Tab 自动切换）")
-    else:
-        print("Plan 模式: 未设置（与当前主题一致）")
+        print(f"  状态: 需重新 apply（主题文件缺失，运行 mcode-theme apply {status['name']}）")
+    print(f"  主题文件: {SETTINGS_FILE}")
 
 
 def set_plan(name):
-    """设置 plan 模式下使用的主题"""
-    theme = current()
-    if not theme:
-        err("no active theme. Run 'mcode-theme apply <name>' first.")
-    # 校验主题存在
-    path = os.path.join(THEME_DIR, f"{name}.json")
-    if not os.path.isfile(path):
-        err(f"theme '{name}' not found in {THEME_DIR}")
-    plan_theme = load_theme(path)
-    theme["planTheme"] = plan_theme["name"]
-    with open(CURRENT_FILE, "w", encoding="utf-8") as f:
-        json.dump(theme, f, indent=2)
-    # 重新 patch（注入 plan 主题钩子）
-    patch_cli(load_theme(os.path.join(THEME_DIR, f"{theme['name']}.json")))
-    print(f"plan mode theme set to '{name}'. Shift+Tab 切换 plan 模式时自动应用。")
+    """Plan 模式主题。
+
+    mcode >= 0.7.0 的原生主题机制没有 plan 模式钩子（不再改写 cli.js），
+    这里退化为设置外观覆盖：<id>/dark 或 <id>/light。
+    """
+    tid = selected_theme_id()
+    base = tid.split("/")[0] if tid else name
+    p = find_theme_file(name)
+    if not p:
+        err(f"theme '{name}' not found in {THEME_DIR} or {LIB_DIR}")
+    theme = load_theme(p)
+    app = theme.get("appearance", "dark")
+    _write_settings({"theme": "%s/%s" % (base, app)})
+    print(f"plan mode theme set to '{name}'（原生机制：外观覆盖 {base}/{app}）")
 
 
 def unset_plan():
-    theme = current()
-    if not theme or "planTheme" not in theme:
-        err("no plan theme set")
-    del theme["planTheme"]
-    with open(CURRENT_FILE, "w", encoding="utf-8") as f:
-        json.dump(theme, f, indent=2)
-    patch_cli(load_theme(os.path.join(THEME_DIR, f"{theme['name']}.json")))
+    tid = selected_theme_id()
+    if not tid:
+        err("no theme selected")
+    base = tid.split("/")[0]
+    _write_settings({"theme": base})
     print("plan mode theme cleared.")
 
 
@@ -1407,6 +1647,8 @@ def create_template(name):
         "ansi": DEFAULT_ANSI["dark"],
         "syntax": DEFAULT_SYNTAX["dark"],
     }
+    os.makedirs(LIB_DIR, exist_ok=True)
+    path = os.path.join(LIB_DIR, f"{name}.json")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(template, f, indent=2)
     print(f"template created: {path}")
@@ -1416,14 +1658,18 @@ def create_template(name):
 
 
 def list_theme_names():
-    if not os.path.isdir(THEME_DIR):
-        return []
-    return sorted(fn[:-5] for fn in os.listdir(THEME_DIR)
-                  if fn.endswith(".json") and not fn.startswith("."))
+    """已安装（原生目录）+ 主题库 的并集。"""
+    return sorted(set(native_theme_names()) | set(lib_theme_names()))
 
 
 def theme_path(name):
+    """原生主题文件路径。"""
     return os.path.join(THEME_DIR, f"{name}.json")
+
+
+def lib_theme_path(name):
+    """主题库（可编辑源格式）路径。"""
+    return os.path.join(LIB_DIR, f"{name}.json")
 
 
 def main(argv):

@@ -60,6 +60,17 @@ fi
 cp -f "${SRC_DIR}/web/index.html" "${BIN_DIR}/web/index.html"
 echo "==> 已复制工具与依赖到 ${BIN_DIR}（旧文件保留为 .old）"
 
+# ---- 3. 主题库（mcode-theme 自有格式，可编辑源）----
+LIB_DIR="$(dirname "${BIN_DIR}")/share/mcode-themes"
+mkdir -p "${LIB_DIR}"
+THEME_COUNT=0
+for f in "${SRC_DIR}"/themes/*.json; do
+  [ -e "$f" ] || continue
+  cp -f "$f" "${LIB_DIR}/$(basename "$f")"
+  THEME_COUNT=$((THEME_COUNT + 1))
+done
+echo "==> 已安装主题库 ${LIB_DIR}（${THEME_COUNT} 个主题）"
+
 # ---- 3. PATH 检查提示 ----
 IN_PATH=0
 case ":${PATH}:" in
