@@ -1,6 +1,8 @@
 {
   "name": "everforest-dark",
   "appearance": "dark",
+  "label": "Everforest Dark",
+  "description": "Muted olive and sage — low-contrast, easy on the eyes",
   "colors": {
     "brand": "#7FBBB3",
     "wordmarkHighlight": "#A7D0B6",

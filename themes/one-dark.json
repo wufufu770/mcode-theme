@@ -1,6 +1,8 @@
 {
   "name": "one-dark",
   "appearance": "dark",
+  "label": "One Dark",
+  "description": "Atom's dark theme — balanced blue-gray with amber accents",
   "colors": {
     "brand": "#6AAEE6",
     "wordmarkHighlight": "#8DC1EC",

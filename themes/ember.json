@@ -1,6 +1,8 @@
 {
   "name": "ember",
   "appearance": "dark",
+  "label": "Ember",
+  "description": "Warm amber and rust on charcoal — low-blue night palette",
   "colors": {
     "brand": "#D97757",
     "wordmarkHighlight": "#E489A8",

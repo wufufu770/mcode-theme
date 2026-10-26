@@ -606,10 +606,15 @@ def to_native_theme(theme):
             syntax[k] = v
     native = {"name": theme["name"], "appearance": app,
               "colors": colors, "syntax": syntax}
+    # vars：mcode 原生支持「颜色值引用 vars 中的名字」，原样透传
+    v = theme.get("vars")
+    if isinstance(v, dict) and v:
+        native["vars"] = {k: val for k, val in v.items()
+                          if isinstance(val, str) and HEX_RE.match(val)}
     if theme.get("label"):
-        native["label"] = theme["label"]
+        native["label"] = str(theme["label"])[:40]
     if theme.get("description"):
-        native["description"] = theme["description"]
+        native["description"] = str(theme["description"])[:120]
     return native
 
 
@@ -624,6 +629,19 @@ def validate_native_theme(native):
         return "\"%s\" is a built-in theme id and is ignored" % name
     if native.get("appearance") not in ("dark", "light"):
         return "appearance must be 'dark' or 'light'"
+    if native.get("label") is not None and not (
+            isinstance(native["label"], str) and 1 <= len(native["label"]) <= 40):
+        return "label must be a string of 1..40 characters"
+    if native.get("description") is not None and not (
+            isinstance(native["description"], str) and len(native["description"]) <= 120):
+        return "description must be a string of at most 120 characters"
+    vs = native.get("vars")
+    if vs is not None:
+        if not isinstance(vs, dict):
+            return "vars must be an object"
+        for k, val in vs.items():
+            if not isinstance(val, str) or not HEX_RE.match(val):
+                return "vars.%s must be a hex color" % k
     for key, allowed in (("colors", NATIVE_UI_KEYS), ("syntax", SYNTAX_KEYS)):
         block = native.get(key)
         if block is None:
@@ -633,8 +651,12 @@ def validate_native_theme(native):
         for k, v in block.items():
             if k not in allowed:
                 return "%s.%s is not an allowed key" % (key, k)
-            if not isinstance(v, str) or not HEX_RE.match(v):
-                return "%s.%s must be a hex color like #RRGGBB" % (key, k)
+            # 原生 schema 允许：hex / 空串 / vars 引用名
+            if not isinstance(v, str):
+                return "%s.%s must be a string" % (key, k)
+            if v == "" or HEX_RE.match(v) or re.match(r"^[A-Za-z_][A-Za-z0-9_-]*$", v):
+                continue
+            return "%s.%s must be a hex color like #RRGGBB" % (key, k)
     return None
 
 
@@ -644,7 +666,7 @@ def write_native_theme(native):
     if err_msg:
         err("native theme invalid: %s" % err_msg)
     os.makedirs(THEME_DIR, exist_ok=True)
-    dest = os.path.join(THEME_DIR, "%s.json" % native["name"])
+    dest = native_theme_path(native["name"], native.get("appearance"))
     tmp = "%s.%d.tmp" % (dest, os.getpid())
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(native, f, indent=2, ensure_ascii=False)
@@ -653,31 +675,108 @@ def write_native_theme(native):
     return dest
 
 
-def native_theme_names():
-    if not os.path.isdir(THEME_DIR):
+def native_theme_path(name, appearance=None):
+    """原生主题文件路径。
+
+    mcode 按主题 JSON 的 name 字段分组，所以同一主题的明暗变体必须**同名**，
+    但文件名要区分开，否则会互相覆盖：
+      dark  → <name>.json
+      light → <name>.light.json
+    """
+    if appearance == "light":
+        return os.path.join(THEME_DIR, "%s.light.json" % name)
+    return os.path.join(THEME_DIR, "%s.json" % name)
+
+
+def _theme_files(directory):
+    """目录下全部主题 JSON 路径（跳过隐藏文件与非 .json）。"""
+    if not os.path.isdir(directory):
         return []
     out = []
-    for fn in os.listdir(THEME_DIR):
+    for fn in sorted(os.listdir(directory)):
         if not fn.endswith(".json") or fn.startswith("."):
             continue
-        out.append(fn[:-5])
-    return sorted(out)
+        p = os.path.join(directory, fn)
+        if os.path.isfile(p):
+            out.append(p)
+    return out
+
+
+def _theme_name_of(path):
+    """从主题文件读 name 字段（失败回退到文件名）。"""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        n = data.get("name")
+        if isinstance(n, str) and n.strip():
+            return n.strip()
+    except (OSError, ValueError):
+        pass
+    return os.path.splitext(os.path.basename(path))[0]
+
+
+def native_theme_names():
+    """原生目录里的主题名（按 name 字段去重，明暗变体算同一个主题）。"""
+    names = {}
+    for p in _theme_files(THEME_DIR):
+        names.setdefault(_theme_name_of(p), p)
+    return sorted(names)
 
 
 def lib_theme_names():
-    if not os.path.isdir(LIB_DIR):
-        return []
+    """主题库里的主题名（按 name 字段去重）。"""
+    names = {}
+    for p in _theme_files(LIB_DIR):
+        names.setdefault(_theme_name_of(p), p)
+    return sorted(names)
+
+
+def theme_variants(name, directory=None):
+    """某主题的全部变体：[(appearance, 文件路径), ...]。
+
+    mcode 按主题 JSON 的 name 字段分组，同名 + 不同 appearance 视为
+    同一主题的明暗两个变体（选择器里可用 ←/→ 切外观）。
+
+    查找顺序：主题库（可编辑源）→ 原生目录（输出）。源优先，否则 Web 端
+    改色后写进原生目录的内容会被 apply 当成"原始主题"回灌，覆盖真正的设计稿。
+    """
     out = []
-    for fn in os.listdir(LIB_DIR):
-        if not fn.endswith(".json") or fn.startswith("."):
+    for d in ([directory] if directory else [LIB_DIR, THEME_DIR]):
+        for p in _theme_files(d):
+            if _theme_name_of(p) != name:
+                continue
+            app = None
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    app = json.load(f).get("appearance")
+            except (OSError, ValueError):
+                pass
+            out.append((app or "dark", p))
+    # 同 appearance 去重（先出现的优先）
+    seen = set()
+    uniq = []
+    for app, p in out:
+        if app in seen:
             continue
-        out.append(fn[:-5])
-    return sorted(out)
+        seen.add(app)
+        uniq.append((app, p))
+    return uniq
 
 
-def find_theme_file(name):
-    """在原生目录与主题库中查找主题文件（原生目录优先）。"""
-    for d in (THEME_DIR, LIB_DIR):
+def find_theme_file(name, appearance=None):
+    """查找主题文件：优先原生目录，其次主题库；appearance 缺省取主变体。"""
+    variants = theme_variants(name)
+    if appearance:
+        for app, p in variants:
+            if app == appearance:
+                return p
+    if variants:
+        # 主变体优先 dark
+        for app, p in variants:
+            if app == "dark":
+                return p
+        return variants[0][1]
+    for d in (LIB_DIR, THEME_DIR):
         p = os.path.join(d, "%s.json" % name)
         if os.path.isfile(p):
             return p
@@ -774,7 +873,9 @@ def load_theme_dict(data, path=None):
 
     return {"name": name, "appearance": appearance,
             "colors": merged_ui, "ansi": merged_ansi,
-            "syntax": merged_syntax, "logo": merged_logo}
+            "syntax": merged_syntax, "logo": merged_logo,
+            "label": data.get("label"), "description": data.get("description"),
+            "vars": data.get("vars")}
 
 
 def fmt(obj, keys):
@@ -1370,19 +1471,33 @@ def _write_theme_cache(name, content):
 
 
 def apply(name):
-    """应用主题（原生机制）：写 <dataDir>/tui/themes/<name>.json + 设置选中项。"""
-    path = find_theme_file(name)
-    if not path:
-        err(f"theme '{name}' not found in {THEME_DIR} or {LIB_DIR}")
-    theme = load_theme(path)
-    native = to_native_theme(theme)
-    dest = write_native_theme(native)
+    """应用主题（原生机制）：把主题的全部变体写入 <dataDir>/tui/themes/ + 设置选中项。
+
+    同名 + 不同 appearance 的文件视为同一主题的明暗变体，mcode 会把它们
+    合并成一个主题条目，选择器里可用 ←/→ 切外观。
+    """
+    variants = theme_variants(name)
+    if not variants:
+        p = find_theme_file(name)
+        if not p:
+            err(f"theme '{name}' not found in {THEME_DIR} or {LIB_DIR}")
+        variants = [("dark", p)]
+    written = []
+    main = None
+    for app, path in variants:
+        theme = load_theme(path)
+        native = to_native_theme(theme)
+        dest = write_native_theme(native)
+        written.append((app, dest))
+        if main is None or app == "dark":
+            main = native
     _write_settings({"theme": name})
-    record_applied(name, native)
-    print(f"applied theme '{name}' -> {dest}")
+    record_applied(name, main)
+    print(f"applied theme '{name}' -> {written[0][1]}")
+    for app, dest in written[1:]:
+        print(f"  + {app} variant -> {dest}")
     print(f"selected in {SETTINGS_FILE}")
-    return native
-    # 原生机制无需 patch cli.js，上面已写文件 + 设置选中项
+    return main
 
 
 def restore():

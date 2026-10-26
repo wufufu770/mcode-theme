@@ -1,6 +1,8 @@
 {
   "name": "monokai",
   "appearance": "dark",
+  "label": "Monokai",
+  "description": "The classic olive-and-purple code palette",
   "colors": {
     "brand": "#AE81FF",
     "wordmarkHighlight": "#C8AAFF",

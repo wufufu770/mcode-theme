@@ -1,6 +1,8 @@
 {
   "name": "minimax-light",
   "appearance": "light",
+  "label": "MiniMax Light",
+  "description": "The official MiniMax light palette — clean and airy",
   "colors": {
     "brand": "#0989E3",
     "wordmarkHighlight": "#33F7D5",

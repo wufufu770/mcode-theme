@@ -1,6 +1,8 @@
 {
   "name": "monokai-pro",
   "appearance": "dark",
+  "label": "Monokai Pro",
+  "description": "Monokai with extra syntax roles — richer highlighting",
   "colors": {
     "brand": "#FFD866",
     "wordmarkHighlight": "#FFBAA3",

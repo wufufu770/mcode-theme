@@ -1,6 +1,8 @@
 {
   "name": "material-palenight",
   "appearance": "dark",
+  "label": "Material Palenight",
+  "description": "Material Design's deep indigo night variant",
   "colors": {
     "brand": "#6899FF",
     "wordmarkHighlight": "#91B5FF",

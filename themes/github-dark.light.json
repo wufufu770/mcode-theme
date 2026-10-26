@@ -1,0 +1,24 @@
+{
+  "name": "github-dark",
+  "appearance": "light",
+  "colors": {
+    "brand": "#1067CC",
+    "wordmarkHighlight": "#116DD8",
+    "wordmarkShadow": "#C919E2",
+    "signal": "#1067CC",
+    "orbit": "#339540",
+    "accent": "#1067CC",
+    "userMessageBg": "#F2F5F8",
+    "text": "#323D46",
+    "muted": "#647384",
+    "dim": "#8E98A6",
+    "border": "#C4C9D2",
+    "line": "#DBDEE3",
+    "success": "#339540",
+    "warning": "#AB7C1C",
+    "error": "#D51208"
+  },
+  "syntax": {},
+  "label": "GitHub Dark",
+  "description": "GitHub's own dark theme — familiar blue-gray neutrals"
+}

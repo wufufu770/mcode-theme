@@ -1,6 +1,8 @@
 {
   "name": "catppuccin-mocha",
   "appearance": "dark",
+  "label": "Catppuccin Mocha",
+  "description": "Pastel-toned Latte palette — soft lilac and rose accents",
   "colors": {
     "brand": "#89B4FA",
     "wordmarkHighlight": "#B0CDFC",

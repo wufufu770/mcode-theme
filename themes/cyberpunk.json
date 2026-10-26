@@ -1,6 +1,8 @@
 {
   "name": "cyberpunk",
   "appearance": "dark",
+  "label": "Cyberpunk",
+  "description": "Neon magenta and cyan on deep black — high-energy synthwave",
   "colors": {
     "brand": "#F9008B",
     "wordmarkHighlight": "#F337FF",

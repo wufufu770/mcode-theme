@@ -88,8 +88,13 @@ class ThemeServer(BaseHTTPRequestHandler):
     # ---------- API ----------
     def _api_state(self):
         cur = mcode_theme_lib.current() or {}
+        variants = {}
+        for name in mcode_theme_lib.list_theme_names():
+            apps = [a for a, _p in mcode_theme_lib.theme_variants(name)]
+            variants[name] = apps
         return {
             "themes": mcode_theme_lib.list_theme_names(),
+            "variants": variants,
             "current": cur.get("name"),
             "currentTheme": cur,
             "planTheme": cur.get("planTheme"),
@@ -109,13 +114,16 @@ class ThemeServer(BaseHTTPRequestHandler):
         """F-23 当前主题状态（新增端点，不改变既有 8 端点契约）"""
         return self._ok(mcode_theme_lib.current_status())
 
-    def _api_theme(self, name):
-        path = mcode_theme_lib.find_theme_file(name)
+    def _api_theme(self, name, appearance=None):
+        path = mcode_theme_lib.find_theme_file(name, appearance)
         if not path or not os.path.isfile(path):
             self._err(f"theme '{name}' not found")
             return
         with open(path, "r", encoding="utf-8") as f:
             theme = json.load(f)
+        theme.setdefault("name", name)
+        # 附带该主题的全部变体（appearance 列表）
+        theme["variants"] = [a for a, _p in mcode_theme_lib.theme_variants(name)]
         # 补全默认键，前端好渲染
         app = theme.get("appearance", "dark")
         full = {
@@ -126,6 +134,12 @@ class ThemeServer(BaseHTTPRequestHandler):
             "syntax": {**mcode_theme_lib.DEFAULT_SYNTAX[app], **theme.get("syntax", {})},
             "logo": theme.get("logo", theme.get("colors", {}).get("brand")),
         }
+        if theme.get("label"):
+            full["label"] = theme["label"]
+        if theme.get("description"):
+            full["description"] = theme["description"]
+        if theme.get("variants"):
+            full["variants"] = theme["variants"]
         self._ok(full)
 
     def _api_apply(self, payload):
@@ -160,8 +174,11 @@ class ThemeServer(BaseHTTPRequestHandler):
             self._err("missing name or theme.colors")
             return
         theme["name"] = name
+        appearance = theme.get("appearance") or "dark"
         os.makedirs(mcode_theme_lib.LIB_DIR, exist_ok=True)
-        lib_path = os.path.join(mcode_theme_lib.LIB_DIR, f"{name}.json")
+        # 明暗变体同名不同 appearance，文件名要区分（否则互相覆盖）
+        lib_name = f"{name}.light.json" if appearance == "light" else f"{name}.json"
+        lib_path = os.path.join(mcode_theme_lib.LIB_DIR, lib_name)
         with open(lib_path, "w", encoding="utf-8") as f:
             json.dump(theme, f, ensure_ascii=False, indent=2)
         try:
@@ -175,7 +192,7 @@ class ThemeServer(BaseHTTPRequestHandler):
         except Exception as e:
             self._err(f"保存原生主题失败: {e}")
             return
-        self._ok({"ok": True, "saved": name})
+        self._ok({"ok": True, "saved": name, "appearance": appearance})
 
     def _api_plan(self, payload):
         name = payload.get("name")
@@ -373,7 +390,9 @@ class ThemeServer(BaseHTTPRequestHandler):
             return self._api_session_messages(m.group(1))
         m = re.match(r"^/api/theme/([^/]+)$", url.path)
         if m:
-            return self._api_theme(m.group(1))
+            q = parse_qs(url.query or "")
+            app = (q.get("appearance") or [None])[0]
+            return self._api_theme(m.group(1), app)
         self._err("not found", 404)
 
     def do_POST(self):
@@ -411,20 +430,34 @@ def main():
         sys.exit(1)
 
     # 端口占用检测：给出友好提示
+    # 注意：探测 socket 必须带 SO_REUSEADDR，否则上一轮连接留下的 TIME_WAIT
+    # 会让 bind 失败，误报「端口被占用」（服务本身 allow_reuse_address=True）。
     if port > 0:
+        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        probe.settimeout(1)
         try:
-            probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            probe.settimeout(1)
             probe.bind((host, port))
             probe.close()
         except OSError:
-            print(f"error: 端口 {port} 已被占用。", file=sys.stderr)
-            print(f"  可能原因：之前启动的 web 服务没有退出。", file=sys.stderr)
-            print(f"  解决方法：", file=sys.stderr)
-            print(f"    1. 查找占用进程:  ss -ltnp | grep {port}", file=sys.stderr)
-            print(f"    2. 结束旧进程:    pkill -f web.py", file=sys.stderr)
-            print(f"    3. 或换个端口:    mcode-theme web --port {port + 1}", file=sys.stderr)
-            sys.exit(1)
+            # bind 失败：再确认是不是真的有进程在监听（而不是残留 TIME_WAIT）
+            conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            conn.settimeout(1)
+            try:
+                conn.connect((host, port))
+                conn.close()
+                occupied = True
+            except OSError:
+                occupied = False
+            probe.close()
+            if occupied:
+                print(f"error: 端口 {port} 已被占用。", file=sys.stderr)
+                print(f"  可能原因：之前启动的 web 服务没有退出。", file=sys.stderr)
+                print(f"  解决方法：", file=sys.stderr)
+                print(f"    1. 查找占用进程:  ss -ltnp | grep {port}", file=sys.stderr)
+                print(f"    2. 结束旧进程:    pkill -f web.py", file=sys.stderr)
+                print(f"    3. 或换个端口:    mcode-theme web --port {port + 1}", file=sys.stderr)
+                sys.exit(1)
 
     httpd = ThreadingHTTPServer((host, port), ThemeServer)
     actual_port = httpd.server_address[1]

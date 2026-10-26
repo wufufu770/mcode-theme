@@ -1,6 +1,8 @@
 {
   "name": "rose-pine",
   "appearance": "dark",
+  "label": "Rosé Pine",
+  "description": "Soft rose, pine and gold — a warm take on Allura",
   "colors": {
     "brand": "#EBBCBA",
     "wordmarkHighlight": "#F4DBDA",

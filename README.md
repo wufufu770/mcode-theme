@@ -16,6 +16,29 @@ MiniMax Code CLI（mcode）主题管理工具：安装、切换、恢复主题�
 > **v0.3.0 起基于 mcode 0.7.0 的原生主题机制**（不再改写 `cli.js`），
 > 详见「mcode 0.7.0 原生主题机制」。旧版 mcode（< 0.7.0）仍走打补丁的老路径。
 
+## CLI 内热切换（/theme）
+
+mcode 0.7.0 自带 `/theme` 命令，会扫描 `~/.minimax/tui/themes/` 并列出**全部自定义主题**，
+选中即热切换（mcode 监听该目录，无需重启）。本工具的应用动作就是往这个目录里写文件，
+所以**不需要插件、不需要重启**：
+
+```
+/theme            → 列表里能看到 22 个自定义主题 + 4 个内置主题
+                   （←/→ 可切 auto / light / dark 外观，Enter 保存）
+```
+
+> **为什么没有做成 `/mcode-theme` 自定义命令？**
+> mcode 的两种插件格式都不支持注册命令：`AGENT_PLUGINS_V1` 的 `plugin.json`
+> 白名单只有 `skills` / `mcpServers` / `hooks` / `apps` / `extensions`，
+> `MINIMAX` 格式的 `.minimax-plugin/plugin.json` 白名单里也没有 `commands`。
+> 代码里唯一的命令注入点是 `commandContributions`（由嵌入宿主传入），
+> ACP 与 app-server 协议均未暴露该通道。所以 `/theme` + 自定义主题目录
+> 就是官方支持的扩展路径。
+
+主题带 `label` / `description` 时，选择器会显示友好名称与 About 说明；
+同一主题的明暗两个变体（同名 + 不同 `appearance`）会被 mcode 合并成一条，
+用 ←/→ 即可切换外观。
+
 ## 安装
 
 ```bash
@@ -69,6 +92,21 @@ mcode 启动 Logo 使用五段垂直渐变（顶部亮 → 底部暗）：
 - 现代终端（Termius、Windows Terminal、iTerm2、GNOME Terminal 等）自动 24bit
   truecolor；256 色终端降级为五段色块（去重保证可辨）
 - 运行时派生，不落主题文件
+
+## 明暗变体
+
+`gen-light-variants.py` 从 dark 主题派生配套的 light 变体：
+
+- 中性色（text/muted/dim/border/line）按**角色目标明度**重映射，同时保留原色相
+  → 每个主题的浅色版仍有自己的味道，又符合浅底可读性约定
+- 强调色用**单调线性明度映射** → 保持 brand / wordmarkHighlight 之间的对比关系
+- 自动对比度兜底：强调色在浅底上至少 3:1（WCAG AA）
+- 实测 21 个主题的浅色版正文对比度 8.8:1 ~ 10.9:1
+
+```bash
+python3 gen-light-variants.py [themes目录]      # 生成 <name>.light.json
+python3 theme-metadata.py [themes目录]           # 补 label / description
+```
 
 ## 校验规则
 

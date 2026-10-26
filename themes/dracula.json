@@ -1,6 +1,8 @@
 {
   "name": "dracula",
   "appearance": "dark",
+  "label": "Dracula",
+  "description": "Classic purple and pink — the original dark pastel theme",
   "colors": {
     "brand": "#BD93F9",
     "wordmarkHighlight": "#D5BAFB",

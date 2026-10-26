@@ -1,6 +1,8 @@
 {
   "name": "github-dark",
   "appearance": "dark",
+  "label": "GitHub Dark",
+  "description": "GitHub's own dark theme — familiar blue-gray neutrals",
   "colors": {
     "brand": "#4D99F1",
     "wordmarkHighlight": "#73AFF4",

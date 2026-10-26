@@ -1,6 +1,8 @@
 {
   "name": "vesper",
   "appearance": "dark",
+  "label": "Vesper",
+  "description": "Deep charcoal with warm amber — restrained and premium",
   "colors": {
     "brand": "#FFC799",
     "signal": "#FFC799",

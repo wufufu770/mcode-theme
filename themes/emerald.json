@@ -1,6 +1,8 @@
 {
   "name": "emerald",
   "appearance": "dark",
+  "label": "Emerald",
+  "description": "Deep green and jade on near-black — forest-floor greens",
   "colors": {
     "brand": "#10A37F",
     "wordmarkHighlight": "#14C89C",

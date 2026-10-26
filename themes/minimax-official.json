@@ -1,6 +1,8 @@
 {
   "name": "minimax-official",
   "appearance": "dark",
+  "label": "MiniMax Official",
+  "description": "The official MiniMax blue palette, tuned for truecolor",
   "colors": {
     "brand": "#72C4FF",
     "wordmarkHighlight": "#9BD5FF",

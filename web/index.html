@@ -1,1407 +1,1333 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="auto">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MiniMax Code 主题配置器</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>mcode-theme — MiniMax Code 主题配置器</title>
 <style>
-/* ============ 设计 tokens（外壳固定，主题色动态） ============ */
+/* ============================================================
+   Apple-like design tokens
+   ============================================================ */
 :root {
-  --bg-page:#0d1117; --bg-app:#11151c; --bg-raised:#161b24; --bg-card:#1a212e;
-  --bg-input:#0f141c; --bg-hover:#1c2433; --border-weak:#232c3d; --border-strong:#2c3749;
-  --text-1:#e6e9ef; --text-2:#9fb2c8; --text-3:#7a8aa0;
-  --brand:#68C0FF; --brand-ink:#08121c;
-  --brand-soft:color-mix(in srgb, var(--brand) 12%, transparent);
-  --radius-sm:4px; --radius-md:6px; --radius-lg:8px; --radius-xl:10px; --radius-logo:12px;
-  --shadow-card:0 1px 2px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
-  --shadow-card-hover:0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
-  --shadow-brand:0 2px 8px color-mix(in srgb, var(--brand) 35%, transparent);
-  --ease-out:cubic-bezier(0,0,0.2,1); --ease-in:cubic-bezier(0.4,0,1,1);
-  --font-sans:-apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  --font-mono:ui-monospace, "SF Mono", Consolas, monospace;
-  /* 主题动态色（applyCSSVars 覆盖） */
-  --hl:#93D2FF; --shadow:#3DAEFF; --signal:#68C0FF; --orbit:#1CCDD2; --accent:#68C0FF;
-  --umbg:#1E3A5F; --text:#EDEDED; --muted:#ADADAD; --dim:#7A7A7A;
-  --border:#2A3A4E; --line:#3D5A7A; --success:#28C567; --warning:#FFC340; --error:#FF5E6C;
-  --syn-blue:#68C0FF; --syn-flamingo:#F2CDCD; --syn-green:#A6E3A1; --syn-mauve:#93D2FF;
-  --syn-overlay:#8B949E; --syn-peach:#FAB387; --syn-pink:#F5C2E7; --syn-red:#FF5E6C;
-  --syn-sapphire:#74C7EC; --syn-subtext:#A6ADC8; --syn-teal:#1CCDD2; --syn-text:#EDEDED; --syn-yellow:#F9E2AF;
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+             "Helvetica Neue", "PingFang SC", "Hiragino Sans GB",
+             "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  --accent: #0071e3;
+  --accent-hover: #0077ed;
+  --accent-press: #006edb;
+
+  --bg: #f5f5f7;
+  --bg-sidebar: rgba(0, 0, 0, 0.022);
+  --panel: #ffffff;
+  --panel-2: #fbfbfd;
+  --panel-3: #f2f2f4;
+  --titlebar: rgba(255, 255, 255, 0.72);
+
+  --text: #1d1d1f;
+  --text-2: #6e6e73;
+  --text-3: #86868b;
+
+  --sep: rgba(0, 0, 0, 0.10);
+  --sep-strong: rgba(0, 0, 0, 0.16);
+  --fill: rgba(0, 0, 0, 0.045);
+  --fill-hover: rgba(0, 0, 0, 0.075);
+  --fill-active: rgba(0, 0, 0, 0.11);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 6px 20px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.05), 0 18px 48px rgba(0, 0, 0, 0.11);
+
+  --r-sm: 8px;
+  --r: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+
+  --titlebar-h: 52px;
+  --sidebar-w: 268px;
 }
-* { box-sizing:border-box; margin:0; padding:0; }
-html,body { height:100%; }
+
+:root[data-theme="dark"] {
+  --accent: #0a84ff;
+  --accent-hover: #3a9bff;
+  --accent-press: #0a7cee;
+
+  --bg: #000000;
+  --bg-sidebar: rgba(255, 255, 255, 0.028);
+  --panel: #1c1c1e;
+  --panel-2: #232325;
+  --panel-3: #2c2c2e;
+  --titlebar: rgba(28, 28, 30, 0.72);
+
+  --text: #f5f5f7;
+  --text-2: #a1a1a6;
+  --text-3: #7c7c81;
+
+  --sep: rgba(255, 255, 255, 0.10);
+  --sep-strong: rgba(255, 255, 255, 0.16);
+  --fill: rgba(255, 255, 255, 0.06);
+  --fill-hover: rgba(255, 255, 255, 0.10);
+  --fill-active: rgba(255, 255, 255, 0.15);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.4), 0 18px 48px rgba(0, 0, 0, 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] {
+    --accent: #0a84ff;
+    --accent-hover: #3a9bff;
+    --accent-press: #0a7cee;
+    --bg: #000000;
+    --bg-sidebar: rgba(255, 255, 255, 0.028);
+    --panel: #1c1c1e;
+    --panel-2: #232325;
+    --panel-3: #2c2c2e;
+    --titlebar: rgba(28, 28, 30, 0.72);
+    --text: #f5f5f7;
+    --text-2: #a1a1a6;
+    --text-3: #7c7c81;
+    --sep: rgba(255, 255, 255, 0.10);
+    --sep-strong: rgba(255, 255, 255, 0.16);
+    --fill: rgba(255, 255, 255, 0.06);
+    --fill-hover: rgba(255, 255, 255, 0.10);
+    --fill-active: rgba(255, 255, 255, 0.15);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.4), 0 18px 48px rgba(0, 0, 0, 0.6);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
 body {
-  font-family:var(--font-sans); background:var(--bg-app); color:var(--text-1);
-  display:flex; flex-direction:column; overflow:hidden;
-  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
-}
-::selection { background:var(--brand-soft); }
-/* ============ Scrollbar ============ */
-*::-webkit-scrollbar { width:10px; height:10px; }
-*::-webkit-scrollbar-track { background:transparent; }
-*::-webkit-scrollbar-thumb { background:var(--border-weak); border-radius:5px; border:2px solid transparent; background-clip:content-box; }
-*::-webkit-scrollbar-thumb:hover { background:var(--border-strong); background-clip:content-box; border:2px solid transparent; }
-
-/* ============ Header ============ */
-header {
-  display:flex; align-items:center; gap:14px; padding:10px 20px;
-  background:var(--bg-raised); border-bottom:1px solid var(--border-weak);
-}
-header .logo { display:flex; align-items:center; gap:10px; min-width:0; }
-header .logo svg { width:30px; height:30px; border-radius:var(--radius-logo); flex-shrink:0; }
-header h1 { font-size:16px; font-weight:700; line-height:1.4; white-space:nowrap; }
-header .spacer { flex:1; }
-.badge {
-  font-size:11px; padding:3px 9px; border-radius:20px; background:var(--bg-hover);
-  color:var(--text-2); border:1px solid var(--border-weak); white-space:nowrap;
-}
-#theme-select {
-  max-width:160px; background:var(--bg-input); color:var(--text-1);
-  border:1px solid var(--border-strong); border-radius:var(--radius-sm);
-  padding:6px 8px; font-size:12px; font-family:var(--font-sans);
-}
-#theme-select:focus { outline:2px solid var(--brand); outline-offset:1px; }
-.header-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
-
-/* ============ 布局 ============ */
-.layout { display:flex; flex:1; overflow:hidden; }
-
-/* ============ Nav ============ */
-nav {
-  width:220px; background:var(--bg-raised); border-right:1px solid var(--border-weak);
-  padding:14px 10px; overflow-y:auto; flex-shrink:0;
-}
-nav .group-label {
-  font-size:10px; font-weight:600; color:var(--text-3); text-transform:uppercase;
-  letter-spacing:0.8px; margin:14px 6px 6px;
-}
-nav button {
-  display:block; width:100%; text-align:left; padding:9px 12px; margin:2px 0;
-  background:transparent; border:none; color:var(--text-2); border-radius:var(--radius-md);
-  cursor:pointer; font-family:var(--font-sans); font-size:13px; line-height:1.5;
-  border-left:3px solid transparent;
-  transition:background-color 100ms var(--ease-out), color 100ms var(--ease-out);
-}
-nav button:hover { background:var(--bg-hover); color:#fff; }
-nav button.active {
-  background:linear-gradient(90deg, var(--brand-soft), transparent);
-  border-left-color:var(--brand); color:var(--brand-ink); font-weight:700;
-  border-radius:var(--radius-md) 0 0 var(--radius-md);
-  transition:background-color 150ms var(--ease-out), color 150ms var(--ease-out);
-}
-nav button .desc { display:block; font-size:10px; color:var(--text-3); margin-top:2px; font-weight:400; }
-
-/* ============ Main / Panel ============ */
-main { flex:1; display:flex; overflow:hidden; min-width:0; }
-.panel { flex:1; padding:20px 24px; overflow-y:auto; min-width:0; }
-.panel h2 { font-size:15px; margin-bottom:4px; }
-.panel .hint { font-size:12px; color:var(--text-3); margin-bottom:16px; line-height:1.5; }
-.panel h3 { margin:14px 0 8px; font-size:13px; font-weight:600; }
-.panel-enter { animation:panelIn 200ms var(--ease-out); }
-@keyframes panelIn {
-  from { opacity:0; transform:translateY(4px); }
-  to { opacity:1; transform:translateY(0); }
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
 }
 
-/* ============ 颜色卡 ============ */
-.color-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px; }
-.color-item {
-  background:var(--bg-card); border:1px solid var(--border-strong); border-radius:var(--radius-lg);
-  padding:10px 12px; display:flex; align-items:center; gap:10px; position:relative;
-  box-shadow:var(--shadow-card);
-  transition:box-shadow 150ms var(--ease-out), border-color 150ms var(--ease-out);
+/* ============================================================
+   布局
+   ============================================================ */
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-rows: var(--titlebar-h) 1fr;
+  grid-template-areas: "titlebar titlebar" "sidebar main";
+  height: 100vh;
 }
-.color-item:hover { box-shadow:var(--shadow-card-hover); border-color:var(--border-strong); }
-.color-item .swatch {
-  width:38px; height:38px; border-radius:var(--radius-md); border:2px solid var(--border-strong);
-  cursor:pointer; position:relative; overflow:hidden; flex-shrink:0;
-  transition:border-color 120ms var(--ease-out);
-}
-.color-item .swatch:hover { border-color:var(--brand); }
-.color-item .swatch input[type=color] { position:absolute; inset:-8px; width:60px; height:60px; opacity:0; cursor:pointer; }
-.color-item .meta { flex:1; min-width:0; }
-.color-item .meta .name { font-size:12px; font-weight:700; color:var(--text-1); font-family:var(--font-mono); }
-.color-item .meta .usage { font-size:10px; color:var(--text-3); margin-top:1px; }
-.color-item .hex {
-  width:84px; background:var(--bg-input); border:1px solid var(--border-strong); color:var(--text-1);
-  border-radius:var(--radius-sm); padding:5px 7px; font-family:var(--font-mono); font-size:12px; text-align:center;
-  transition:border-color 120ms var(--ease-out);
-}
-.color-item .hex:focus { outline:2px solid var(--brand); outline-offset:1px; }
-.color-item .hex.invalid { border-color:var(--error); }
-.color-item .reset {
-  position:absolute; top:6px; right:6px; width:20px; height:20px; line-height:1;
-  background:transparent; border:none; color:var(--text-3); border-radius:var(--radius-sm);
-  cursor:pointer; font-size:12px; opacity:0; pointer-events:none;
-  transition:opacity 120ms var(--ease-out) 40ms, color 120ms var(--ease-out);
-}
-.color-item:hover .reset { opacity:1; pointer-events:auto; }
-.color-item .reset:hover { color:var(--text-1); background:var(--bg-hover); }
-.color-item .contrast {
-  position:absolute; right:8px; bottom:6px; font-size:11px; line-height:1.4;
-  display:flex; align-items:center; gap:3px;
-}
-.color-item .contrast.ok { color:var(--success); }
-.color-item .contrast.bad { color:var(--error); font-weight:600; }
-.color-item.has-contrast { padding-bottom:22px; }
 
-/* ============ 表单 ============ */
-select, input[type=text] {
-  background:var(--bg-input); color:var(--text-1); border:1px solid var(--border-strong);
-  border-radius:var(--radius-sm); padding:6px 10px; font-family:var(--font-sans); font-size:12px;
-  transition:border-color 120ms var(--ease-out);
+/* ---------- 标题栏 ---------- */
+.titlebar {
+  grid-area: titlebar;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 16px 0 18px;
+  background: var(--titlebar);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 0.5px solid var(--sep);
+  position: relative;
+  z-index: 40;
 }
-select:focus, input[type=text]:focus { outline:2px solid var(--brand); outline-offset:1px; }
 
-/* ============ 按钮 ============ */
-.toolbar { display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
+.lights { display: flex; gap: 8px; margin-right: 4px; }
+.light { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 0.5px rgba(0,0,0,.08); }
+.light.r { background: #ff5f57; } .light.y { background: #febc2e; } .light.g { background: #28c840; }
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.title small {
+  font-weight: 400;
+  color: var(--text-3);
+  margin-left: 8px;
+  font-size: 12px;
+}
+
+.titlebar .spacer { flex: 1; }
+
+.status-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 26px; padding: 0 11px;
+  border-radius: 980px;
+  background: var(--fill);
+  border: 0.5px solid var(--sep);
+  font-size: 12px; color: var(--text-2);
+  white-space: nowrap;
+}
+.status-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); flex: none; }
+.status-pill.on .dot { background: #30d158; box-shadow: 0 0 0 2.5px rgba(48, 209, 88, 0.22); }
+.status-pill.warn .dot { background: #ff9f0a; box-shadow: 0 0 0 2.5px rgba(255, 159, 10, 0.22); }
+.status-pill strong { color: var(--text); font-weight: 590; }
+
+/* ---------- 按钮 ---------- */
 .btn {
-  background:var(--bg-hover); color:var(--text-2); border:1px solid var(--border-strong);
-  padding:7px 14px; border-radius:var(--radius-md); cursor:pointer;
-  font-family:var(--font-sans); font-size:12px; font-weight:500; line-height:1.4;
-  transition:background-color 120ms var(--ease-out), color 120ms var(--ease-out),
-             box-shadow 120ms var(--ease-out), border-color 120ms var(--ease-out),
-             transform 80ms var(--ease-out);
+  -webkit-appearance: none; appearance: none;
+  font-family: inherit; font-size: 12.5px; font-weight: 500;
+  height: 28px; padding: 0 14px;
+  border-radius: 980px;
+  border: 0.5px solid var(--sep-strong);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: background .16s ease, transform .1s ease, box-shadow .16s ease, opacity .16s;
+  box-shadow: var(--shadow-sm);
+  white-space: nowrap;
 }
-.btn:hover { background:var(--bg-hover); filter:brightness(1.12); }
-.btn:active { transform:scale(0.98); }
-.btn:focus-visible { outline:2px solid var(--brand); outline-offset:2px; }
-.btn:disabled { background:var(--bg-card); border-color:var(--border-weak); color:var(--text-3); cursor:not-allowed; }
+.btn:hover { background: var(--fill-hover); }
+.btn:active { transform: scale(.97); }
+.btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0, 113, 227, .32); }
 .btn.primary {
-  background:var(--brand); color:var(--brand-ink); font-weight:700; border:none;
-  box-shadow:var(--shadow-brand);
+  background: var(--accent); color: #fff; border-color: transparent;
+  box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 4px 14px rgba(0,113,227,.28);
 }
-.btn.primary:hover { filter:brightness(1.15); }
-.btn.ghost { background:transparent; color:var(--text-2); }
-.btn.ghost:hover { background:var(--bg-hover); }
-.row { display:flex; gap:12px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+.btn.primary:hover { background: var(--accent-hover); }
+.btn.primary:active { background: var(--accent-press); }
+.btn.ghost { background: transparent; border-color: transparent; box-shadow: none; color: var(--text-2); }
+.btn.ghost:hover { background: var(--fill); color: var(--text); }
+.btn.danger { color: #ff3b30; }
+.btn.danger:hover { background: rgba(255, 59, 48, .10); }
+.btn[disabled] { opacity: .38; pointer-events: none; }
+.btn svg { width: 13px; height: 13px; flex: none; }
 
-/* ============ Preview（终端窗口 chrome） ============ */
-#preview-wrap {
-  width:400px; background:var(--bg-page); border-left:1px solid var(--border-weak);
-  display:flex; flex-direction:column; flex-shrink:0; transition:width 200ms var(--ease-out);
+.icon-btn {
+  -webkit-appearance: none; appearance: none;
+  width: 28px; height: 28px; border-radius: 8px;
+  border: 0.5px solid var(--sep-strong); background: var(--panel);
+  color: var(--text-2); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow-sm);
+  transition: background .16s ease, color .16s ease;
 }
-#preview-wrap .pv-head {
-  padding:8px 14px; font-size:11px; color:var(--text-3); border-bottom:1px solid var(--border-weak);
-  display:flex; justify-content:space-between; align-items:center; gap:8px;
-}
-.pv-appearance-btn {
-  background:var(--bg-hover); border:1px solid var(--border-strong); color:var(--text-2);
-  border-radius:var(--radius-sm); padding:2px 8px; font-size:11px; cursor:pointer;
-  font-family:var(--font-sans);
-  transition:background-color 120ms var(--ease-out), color 120ms var(--ease-out);
-}
-.pv-appearance-btn:hover { background:var(--bg-hover); filter:brightness(1.12); color:var(--text-1); }
-#preview { flex:1; padding:16px 14px; overflow-y:auto; }
-.pv-shell {
-  border:1px solid var(--border-weak); border-radius:var(--radius-xl); overflow:hidden;
-  background:var(--bg-page); box-shadow:var(--shadow-card-hover);
-}
-.pv-shell-bar {
-  height:36px; background:var(--bg-raised); border-bottom:1px solid var(--border-weak);
-  display:flex; align-items:center; gap:10px; padding:0 12px; flex-shrink:0;
-}
-.pv-shell-dots { display:flex; gap:6px; flex-shrink:0; }
-.pv-shell-dots i { width:12px; height:12px; border-radius:50%; display:block; }
-.pv-shell-dots i:nth-child(1){ background:#FF5F56; } .pv-shell-dots i:nth-child(2){ background:#FFBD2E; } .pv-shell-dots i:nth-child(3){ background:#27C93F; }
-.pv-shell-title { font-size:11px; color:var(--text-3); font-family:var(--font-mono); }
-.pv-app { border:1px solid var(--border); border-radius:var(--radius-xl); background:var(--bg-input); overflow:hidden; }
-.pv-top { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--line); }
-.pv-logo { display:flex; align-items:center; gap:8px; }
-.pv-logo svg { width:26px; height:26px; border-radius:var(--radius-md); }
+.icon-btn:hover { background: var(--fill-hover); color: var(--text); }
+.icon-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0, 113, 227, .32); }
+.icon-btn svg { width: 15px; height: 15px; }
 
-/* ============ 颜色→应用点高亮 ============ */
-.hl-target {
-  outline:2px solid var(--brand) !important;
-  outline-offset:2px;
-  box-shadow:0 0 10px color-mix(in srgb, var(--brand) 35%, transparent) !important;
-  border-radius:3px;
-  transition:outline 150ms ease-out, box-shadow 150ms ease-out;
+/* ---------- 侧栏 ---------- */
+.sidebar {
+  grid-area: sidebar;
+  background: var(--bg-sidebar);
+  border-right: 0.5px solid var(--sep);
+  display: flex; flex-direction: column;
+  min-height: 0;
 }
-.hl-fade { transition:outline 200ms ease-out, box-shadow 200ms ease-out; outline:2px solid transparent; }
-@media (prefers-reduced-motion: reduce){
-  .hl-target, .hl-fade { transition:none; }
+
+.search-wrap { padding: 10px 12px 8px; }
+
+.search {
+  display: flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 9px;
+  background: var(--fill);
+  border: 0.5px solid transparent;
+  border-radius: var(--r-sm);
+  transition: border-color .16s, background .16s;
 }
-.pv-name { font-weight:800; font-size:14px; letter-spacing:.5px; }
-.pv-name .a { color:var(--hl); text-shadow:0 0 6px var(--brand); }
-.pv-name .b { color:var(--brand); text-shadow:0 0 6px var(--shadow); }
-.pv-top .status { margin-left:auto; display:flex; align-items:center; gap:10px; font-size:10px; }
-.dot { width:8px; height:8px; border-radius:50%; background:var(--signal); box-shadow:0 0 6px var(--signal); }
-.pv-body { padding:14px; }
-.pv-border-hint { border:1px dashed var(--line); border-radius:var(--radius-lg); padding:8px; margin-bottom:10px; text-align:center; font-size:10px; color:var(--dim); }
-.pv-user { background:var(--umbg); color:var(--text); border-radius:9px; padding:10px 12px; margin-bottom:10px; font-size:12px; }
-.pv-user .tag { font-size:9px; color:var(--muted); margin-bottom:4px; }
-.pv-ai { color:var(--text); font-size:12px; line-height:1.65; margin-bottom:10px; }
-.pv-ai .muted { color:var(--muted); }
-.pv-ai .dim { color:var(--dim); }
-.pv-ai .hl { color:var(--brand); }
-.pv-ai .succ { color:var(--success); }
-.pv-ai .warn { color:var(--warning); }
-.pv-ai .err { color:var(--error); }
+.search:focus-within { background: var(--panel); border-color: var(--accent); }
+.search svg { width: 13px; height: 13px; color: var(--text-3); flex: none; }
+.search input {
+  flex: 1; min-width: 0; border: 0; background: transparent; outline: none;
+  font-family: inherit; font-size: 13px; color: var(--text);
+}
+.search input::placeholder { color: var(--text-3); }
+
+.side-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 14px 5px;
+  font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.side-head .count { font-weight: 500; letter-spacing: 0; text-transform: none; }
+
+.theme-list { flex: 1; overflow-y: auto; padding: 0 8px 14px; min-height: 0; }
+.theme-list::-webkit-scrollbar { width: 8px; }
+.theme-list::-webkit-scrollbar-thumb { background: var(--fill-active); border-radius: 4px; border: 2px solid transparent; background-clip: content-box; }
+
+.theme-item {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; padding: 6px 8px;
+  border: 0; background: transparent; border-radius: var(--r-sm);
+  font-family: inherit; font-size: 13px; color: var(--text);
+  cursor: pointer; text-align: left;
+  transition: background .12s ease;
+}
+.theme-item:hover { background: var(--fill); }
+.theme-item.active { background: var(--accent); color: #fff; }
+.theme-item.active .tname-sub { color: rgba(255,255,255,.75); }
+.theme-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.tname { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.tname-main { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.tname-sub { font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+
+.swatch-strip { display: flex; gap: 2px; flex: none; }
+.swatch-strip i { width: 5px; height: 14px; border-radius: 2px; display: block; }
+
+.badge {
+  flex: none; font-size: 10px; font-weight: 600; letter-spacing: .03em;
+  padding: 1px 5px; border-radius: 4px;
+  background: var(--fill-active); color: var(--text-2);
+}
+.theme-item.active .badge { background: rgba(255,255,255,.22); color: #fff; }
+
+/* ---------- 主区 ---------- */
+.main { grid-area: main; overflow-y: auto; min-height: 0; }
+.main::-webkit-scrollbar { width: 10px; }
+.main::-webkit-scrollbar-thumb { background: var(--fill-active); border-radius: 5px; border: 3px solid transparent; background-clip: content-box; }
+
+.main-inner { max-width: 1080px; margin: 0 auto; padding: 22px 28px 64px; }
+
+.section-head { margin: 0 0 14px; }
+.section-head h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.022em; }
+.section-head p { color: var(--text-2); font-size: 13px; margin-top: 3px; }
+
+/* ---------- 分段控件 ---------- */
+.segmented {
+  position: relative; display: inline-flex;
+  background: var(--fill); border-radius: 9px; padding: 2px;
+  margin-bottom: 18px;
+}
+.segmented button {
+  position: relative; z-index: 1;
+  border: 0; background: transparent; cursor: pointer;
+  font-family: inherit; font-size: 12.5px; font-weight: 500; color: var(--text-2);
+  padding: 4px 14px; border-radius: 7px;
+  transition: color .2s ease;
+}
+.segmented button.on { color: var(--text); font-weight: 590; }
+.segmented .thumb {
+  position: absolute; z-index: 0; top: 2px; bottom: 2px;
+  background: var(--panel); border-radius: 7px;
+  box-shadow: var(--shadow-sm), 0 0 0 0.5px var(--sep);
+  transition: transform .26s cubic-bezier(.32,.72,0,1), width .26s cubic-bezier(.32,.72,0,1);
+}
+.segmented.mini { margin-bottom: 0; padding: 1px; }
+.segmented.mini button { padding: 2px 10px; font-size: 11.5px; border-radius: 6px; }
+.segmented.mini .thumb { top: 1px; bottom: 1px; border-radius: 6px; }
+
+/* ---------- 卡片 ---------- */
+.card {
+  background: var(--panel);
+  border: 0.5px solid var(--sep);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.card + .card { margin-top: 16px; }
+.card-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 16px;
+  border-bottom: 0.5px solid var(--sep);
+}
+.card-head h3 { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+.card-head .sub { font-size: 12px; color: var(--text-3); }
+.card-head .spacer { flex: 1; }
+.card-body { padding: 16px; }
+
+/* ============================================================
+   预览（模拟 mcode TUI）
+   ============================================================ */
+.preview {
+  --p-brand: #68C0FF;
+  --p-brand-hi: #93D2FF;
+  --p-brand-lo: #3DAEFF;
+  --p-orbit: #1CCDD2;
+  --p-userbg: #262626;
+  --p-text: #EDEDED;
+  --p-muted: #ADADAD;
+  --p-dim: #666666;
+  --p-border: #303030;
+  --p-line: #666666;
+  --p-success: #28C567;
+  --p-warning: #FFC340;
+  --p-error: #FF5E6C;
+  --p-md-h: #CBA6F7;
+  --p-md-c: #A6E3A1;
+  --p-md-l: #68C0FF;
+
+  background: #0d0d0d;
+  border-radius: var(--r);
+  border: 0.5px solid var(--sep);
+  padding: 22px 24px 18px;
+  font-family: var(--font-mono);
+  overflow: hidden;
+}
+
+.pv-logo {
+  font-size: 10px; line-height: 1.18; letter-spacing: .04em;
+  white-space: pre; margin-bottom: 18px; overflow-x: auto;
+  scrollbar-width: none;
+}
+.pv-logo::-webkit-scrollbar { display: none; }
+.pv-logo .l0 { color: var(--p-brand-hi); }
+.pv-logo .l1 { color: var(--p-brand); }
+.pv-logo .l2 { color: var(--p-brand-lo); }
+
+.pv-user {
+  background: var(--p-userbg);
+  color: var(--p-text);
+  border-radius: 12px;
+  padding: 9px 13px;
+  margin: 0 0 14px auto;
+  max-width: 78%;
+  width: fit-content;
+  font-size: 12.5px;
+  border: 0.5px solid var(--p-border);
+}
+
+.pv-ai { color: var(--p-text); font-size: 12.5px; }
+.pv-ai h4 { color: var(--p-md-h); font-size: 13px; font-weight: 600; margin: 2px 0 6px; }
+.pv-ai p { color: var(--p-text); margin-bottom: 8px; }
+.pv-ai a { color: var(--p-md-l); text-decoration: underline; text-underline-offset: 2px; }
+
 .pv-code {
-  border:1px solid var(--border); border-left:3px solid var(--brand); border-radius:var(--radius-md);
-  padding:10px 12px; margin:10px 0; font-size:11px; overflow-x:auto; background:var(--bg-input);
-  font-family:var(--font-mono); line-height:1.6;
+  background: rgba(255,255,255,.035);
+  border-left: 2px solid var(--p-md-l);
+  border-radius: 0 6px 6px 0;
+  padding: 9px 12px; margin: 8px 0;
+  font-size: 12px; overflow-x: auto;
 }
-.pv-code .k { color:var(--syn-mauve); } .pv-code .s { color:var(--syn-green); } .pv-code .f { color:var(--syn-blue); }
-.pv-code .n { color:var(--syn-peach); } .pv-code .c { color:var(--syn-overlay); } .pv-code .t { color:var(--syn-teal); }
-.pv-code .y { color:var(--syn-yellow); } .pv-code .r { color:var(--syn-red); }
-.pv-foot { display:flex; gap:6px; padding:10px 14px; border-top:1px solid var(--line); align-items:center; font-size:10px; color:var(--dim); }
-.pv-foot .plan-badge { background:var(--accent); color:var(--on-accent); font-weight:800; padding:2px 8px; border-radius:var(--radius-sm); font-size:9px; }
-.pv-foot .perm { color:var(--muted); }
-.pv-input { margin-top:8px; border:1px solid var(--border); border-radius:var(--radius-md); padding:8px 10px; color:var(--text); font-size:12px; background:var(--bg-input); }
-.pv-input:focus { outline:2px solid var(--accent); }
-.pv-alert { border-radius:var(--radius-md); padding:8px 10px; font-size:11px; margin:8px 0; }
-.pv-alert.success { background:color-mix(in srgb, var(--success) 14%, transparent); color:var(--success); border:1px solid var(--success); }
-.pv-alert.warning { background:color-mix(in srgb, var(--warning) 14%, transparent); color:var(--warning); border:1px solid var(--warning); }
-.pv-alert.error { background:color-mix(in srgb, var(--error) 14%, transparent); color:var(--error); border:1px solid var(--error); }
+.pv-code .c-kw { color: var(--p-md-h); }
+.pv-code .c-fn { color: var(--p-md-l); }
+.pv-code .c-str { color: var(--p-md-c); }
+.pv-code .c-cm { color: var(--p-dim); }
 
-/* ============ 真实会话预览 ============ */
-.pv-src { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-.pv-src-seg { display:flex; border:1px solid var(--border-strong); border-radius:var(--radius-sm); overflow:hidden; }
-.pv-src-seg button {
-  background:var(--bg-input); border:none; color:var(--text-2); font-family:var(--font-sans);
-  font-size:11px; padding:2px 8px; cursor:pointer;
+.pv-foot { display: flex; align-items: center; gap: 9px; margin-top: 16px; }
+.pv-input {
+  flex: 1; background: rgba(255,255,255,.035);
+  border: 0.5px solid var(--p-border); border-radius: 10px;
+  padding: 8px 12px; color: var(--p-dim); font-size: 12.5px;
+  font-family: var(--font-mono);
 }
-.pv-src-seg button.on { background:var(--brand-soft); color:var(--brand); font-weight:700; }
-.pv-src-select { min-width:120px; max-width:170px; }
-.pv-src-refresh { background:var(--bg-hover); border:1px solid var(--border-strong); color:var(--text-2);
-  border-radius:var(--radius-sm); padding:2px 8px; font-size:11px; cursor:pointer; font-family:var(--font-sans); }
-.pv-src-refresh:hover { filter:brightness(1.15); color:var(--text-1); }
-.pv-src-refresh:disabled { opacity:.5; cursor:not-allowed; }
-.pv-src-note { font-size:10px; color:var(--text-3); }
-
-/* ============ 当前主题状态卡 ============ */
-#status-card {
-  display:none; gap:0; margin:0 20px 10px; padding:0;
-  border:1px solid var(--border-weak); border-radius:var(--radius-lg);
-  background:var(--bg-raised); overflow:hidden;
-}
-#status-card.show { display:flex; }
-#status-card .sc-col { flex:1; padding:10px 14px; min-width:0; }
-#status-card .sc-col + .sc-col { border-left:1px solid var(--border-weak); }
-#status-card .sc-head { display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
-#status-card .sc-title { font-size:11px; font-weight:700; color:var(--text-2); }
-#status-card .sc-name { font-size:13px; font-weight:700; color:var(--text-1); font-family:var(--font-mono); }
-#status-card .sc-badge {
-  font-size:10px; padding:2px 8px; border-radius:20px; font-weight:700;
-}
-#status-card .sc-badge.ok { background:color-mix(in srgb, var(--success) 16%, transparent); color:var(--success); }
-#status-card .sc-badge.stale { background:color-mix(in srgb, var(--warning) 16%, transparent); color:var(--warning); }
-#status-card .sc-badge.none { background:var(--bg-hover); color:var(--text-3); }
-#status-card .sc-meta { font-size:10px; color:var(--text-3); margin:2px 0 6px; line-height:1.6; }
-#status-card .sc-swatches { display:flex; gap:3px; flex-wrap:wrap; }
-#status-card .sc-swatch { width:14px; height:14px; border-radius:3px; border:1px solid rgba(255,255,255,.08); }
-#status-card .sc-guide {
-  margin-top:8px; font-size:11px; color:var(--text-2);
-}
-#status-card .sc-guide .btn { padding:3px 10px; font-size:11px; }
-@media (max-width:767px){ #status-card { flex-direction:column; } #status-card .sc-col + .sc-col { border-left:none; border-top:1px solid var(--border-weak); } }
-.pv-thinking { color:var(--muted); font-style:italic; }
-.pv-thinking .pv-th-tag { font-size:9px; color:var(--dim); }
-.pv-real-err { color:var(--warning); font-size:11px; padding:6px 0; }
-.pv-code pre { margin:0; white-space:pre-wrap; font-family:var(--font-mono); }
-.pv-ai .muted { color:var(--muted); }
-
-/* ============ 选中态模拟块（skill 选择） ============ */
-.pv-sel { margin:10px 0 8px; border:1px solid var(--border); border-radius:var(--radius-md); overflow:hidden; background:var(--bg-input); }
-.pv-sel-item {
-  position:relative; padding:6px 26px 6px 14px; font-size:11px; color:var(--text);
-  border-left:2px solid transparent; line-height:1.5; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  transition:background-color 100ms ease-out, color 100ms ease-out;
-}
-.pv-sel-item + .pv-sel-item { border-top:1px solid var(--line); }
-.pv-sel-item.selected {
-  background:color-mix(in srgb, var(--accent) 12%, transparent);
-  color:var(--accent); border-left:2px solid var(--accent); font-weight:700;
-}
-.pv-sel-check { position:absolute; right:9px; top:50%; transform:translateY(-50%); color:var(--accent); font-weight:900; }
-
-/* ============ 自定义下拉（原生 DOM，零依赖） ============ */
-.c-drop { position:relative; display:inline-block; }
-.c-drop-trigger {
-  display:flex; align-items:center; gap:6px; max-width:200px;
-  background:var(--bg-input); color:var(--text-1); border:1px solid var(--border-strong);
-  border-radius:var(--radius-sm); padding:6px 8px; font-size:12px; font-family:var(--font-sans);
-  cursor:pointer; text-align:left;
-}
-.c-drop-trigger:focus-visible { outline:2px solid var(--brand); outline-offset:1px; }
-.c-drop-value { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
-.c-drop-caret { color:var(--text-3); font-size:9px; transition:transform 200ms cubic-bezier(0.4,0,0.2,1); }
-.c-drop.open .c-drop-caret { transform:rotate(180deg); }
-.c-drop-menu {
-  position:absolute; top:calc(100% + 4px); left:0; min-width:100%; z-index:50;
-  background:var(--bg-raised); border:1px solid var(--border-strong); border-radius:var(--radius-md);
-  list-style:none; padding:4px; margin:0; box-shadow:0 6px 18px rgba(0,0,0,.45);
-  max-height:260px; overflow-y:auto;
-  opacity:0; transform:translateY(-4px); pointer-events:none;
-  transition:opacity 200ms cubic-bezier(0.4,0,0.2,1), transform 200ms cubic-bezier(0.4,0,0.2,1);
-}
-.c-drop.open .c-drop-menu { opacity:1; transform:translateY(0); pointer-events:auto; }
-.c-drop-menu li {
-  position:relative; padding:6px 26px 6px 10px; font-size:12px; color:var(--text-2);
-  border-radius:var(--radius-sm); cursor:pointer; white-space:nowrap;
-}
-.c-drop-menu li:hover, .c-drop-menu li.hover { background:var(--bg-hover); color:var(--text-1); }
-.c-drop-menu li.sel { background:var(--brand-soft); color:var(--brand); font-weight:700; }
-.c-drop-menu li .ck { position:absolute; right:8px; top:50%; transform:translateY(-50%); font-weight:900; }
-
-/* ============ Toast ============ */
-#toast {
-  position:fixed; bottom:22px; left:50%; transform:translateX(-50%);
-  background:var(--success); color:var(--on-success); padding:10px 22px; border-radius:var(--radius-lg);
-  font-weight:700; font-size:13px; font-family:var(--font-sans);
-  opacity:0; pointer-events:none; z-index:99; box-shadow:0 4px 12px rgba(0,0,0,0.4);
-  transition:opacity 150ms var(--ease-out), transform 150ms var(--ease-out);
-}
-#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
-#toast.hide { opacity:0; transform:translateX(-50%) translateY(4px); }
-#toast.err { background:var(--error); color:#fff; }
-
-/* ============ 响应式 ============ */
-@media (max-width:1279px){
-  #preview-wrap { width:360px; }
-  nav { width:210px; }
-}
-@media (max-width:767px){
-  body { overflow:auto; }
-  header { flex-wrap:wrap; gap:8px; padding:8px 12px; }
-  header .logo h1 { font-size:14px; }
-  .header-actions { width:100%; justify-content:flex-end; flex-wrap:wrap; }
-  .layout { flex-direction:column; overflow:visible; }
-  nav {
-    width:100%; height:48px; border-right:none; border-bottom:1px solid var(--border-weak);
-    display:flex; overflow-x:auto; overflow-y:hidden; padding:6px 8px; gap:6px;
-  }
-  nav .group-label { display:none; }
-  nav button {
-    width:auto; flex-shrink:0; white-space:nowrap; padding:6px 14px; margin:0;
-    border-left:none; border-bottom:3px solid transparent; border-radius:var(--radius-md);
-  }
-  nav button.active { background:var(--brand-soft); border-left:none; border-bottom-color:var(--brand); border-radius:var(--radius-md); color:var(--text-1); }
-  nav button .desc { display:none; }
-  main { flex-direction:column; overflow:visible; }
-  .panel { overflow:visible; padding:16px; }
-  #preview-wrap { width:100%; border-left:none; border-top:1px solid var(--border-weak); }
-}
-@media (max-width:479px){
-  .color-grid { grid-template-columns:1fr; }
-  .color-item .hex { width:72px; }
-  header h1 { display:none; }
-  .badge { font-size:10px; }
+.pv-hint { color: var(--p-dim); font-size: 11px; font-family: var(--font-ui); }
+.pv-hint kbd {
+  font-family: var(--font-mono); font-size: 10.5px;
+  background: rgba(255,255,255,.07); border-radius: 4px; padding: 1px 4px;
+  border: 0.5px solid var(--p-border);
 }
 
-/* ============ Reduced Motion ============ */
-@media (prefers-reduced-motion: reduce){
-  .panel-enter { animation:none; }
-  * { transition-duration:0ms !important; animation-duration:0ms !important; }
+/* ============================================================
+   颜色编辑器
+   ============================================================ */
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+  gap: 2px 22px;
 }
-/* ============ 纪律柱状图 ============ */
-.disc-card {
-  background:var(--bg-card); border:1px solid var(--border-strong); border-radius:var(--radius-lg);
-  padding:12px 14px; margin-bottom:16px; box-shadow:var(--shadow-card);
+.color-row {
+  display: flex; align-items: center; gap: 9px;
+  padding: 5px 0;
+  border-bottom: 0.5px solid var(--sep);
 }
-.disc-card .disc-title { font-size:12px; font-weight:600; color:var(--text-1); margin-bottom:2px; display:flex; align-items:center; gap:8px; }
-.disc-card .disc-sub { font-size:11px; color:var(--text-3); margin-bottom:10px; }
-.disc-groups { display:flex; gap:12px; flex-wrap:wrap; }
-.disc-group { flex:1; min-width:180px; }
-.disc-group .g-label { font-size:10px; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px; }
-.disc-bars { display:flex; align-items:flex-end; gap:6px; height:104px; position:relative; border-bottom:1px solid var(--border-weak); }
-.disc-ref { position:absolute; left:0; right:0; border-top:1px dashed var(--border-weak); pointer-events:none; }
-.disc-ref.r85 { bottom:85px; } .disc-ref.r60 { bottom:60px; } .disc-ref.r30 { bottom:30px; }
-.disc-bar-wrap { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; min-width:0; }
-.disc-bar {
-  width:100%; max-width:26px; min-height:2px; border:1px solid var(--border-weak); border-radius:2px 2px 0 0;
-  position:relative; transition:background-color 120ms var(--ease-out), box-shadow 120ms var(--ease-out);
+.color-row:last-child { border-bottom: 0; }
+
+.swatch {
+  width: 24px; height: 24px; border-radius: 7px; flex: none;
+  border: 0.5px solid var(--sep-strong);
+  cursor: pointer; position: relative; overflow: hidden;
+  transition: transform .12s ease;
 }
-.disc-bar.fail {
-  background:color-mix(in srgb, var(--error) 30%, transparent) !important;
-  box-shadow:0 0 0 1px var(--error);
+.swatch:hover { transform: scale(1.08); }
+.swatch input { position: absolute; inset: -4px; opacity: 0; cursor: pointer; width: calc(100% + 8px); height: calc(100% + 8px); }
+
+.color-label { flex: 1; min-width: 0; }
+.color-label b { display: block; font-weight: 500; font-size: 12.5px; }
+.color-label span { display: block; font-size: 11px; color: var(--text-3); font-family: var(--font-mono); }
+
+.hex-input {
+  width: 84px; flex: none;
+  font-family: var(--font-mono); font-size: 12px;
+  padding: 4px 7px; border-radius: var(--r-sm);
+  border: 0.5px solid var(--sep-strong); background: var(--panel-2);
+  color: var(--text); text-transform: uppercase;
+  transition: border-color .16s, box-shadow .16s;
 }
-.disc-bar.fail::after {
-  content:""; position:absolute; top:-4px; left:50%; transform:translateX(-50%);
-  width:8px; height:8px; border-radius:50%; background:var(--error);
+.hex-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,113,227,.2); }
+.hex-input.bad { border-color: #ff3b30; }
+
+.row-note { font-size: 11.5px; color: var(--text-3); margin-top: 10px; }
+
+/* ---------- 对比度检查 ---------- */
+.contrast-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; }
+.contrast-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 9px; border-radius: var(--r-sm); background: var(--panel-2);
+  border: 0.5px solid var(--sep);
 }
-.disc-bar-name { font-size:10px; color:var(--text-3); font-family:var(--font-mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
-.disc-bar:hover { box-shadow:0 0 6px color-mix(in srgb, var(--brand) 40%, transparent); }
-.disc-tip {
-  position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%);
-  background:var(--bg-raised); border:1px solid var(--border-strong); border-radius:var(--radius-md);
-  padding:5px 8px; font-size:11px; color:var(--text-1); white-space:nowrap; z-index:10;
-  opacity:0; pointer-events:none; transition:opacity 150ms var(--ease-out);
-  box-shadow:0 4px 12px rgba(0,0,0,0.4);
+.contrast-item .ratio { font-family: var(--font-mono); font-size: 12px; font-weight: 600; }
+.contrast-item .nm { font-size: 11.5px; color: var(--text-2); flex: 1; }
+.contrast-item .tagp { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; }
+.tagp.aaa { background: rgba(48,209,88,.16); color: #248a3d; }
+.tagp.aa  { background: rgba(48,209,88,.16); color: #248a3d; }
+.tagp.lg  { background: rgba(255,159,10,.18); color: #b25000; }
+.tagp.bad { background: rgba(255,59,48,.16); color: #d70015; }
+:root[data-theme="dark"] .tagp.aaa, :root[data-theme="dark"] .tagp.aa { color: #5ad86a; }
+:root[data-theme="dark"] .tagp.lg { color: #ffb340; }
+:root[data-theme="dark"] .tagp.bad { color: #ff6961; }
+
+/* ---------- 字体 ---------- */
+.font-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.font-item {
+  padding: 10px 12px; border-radius: var(--r-sm);
+  border: 0.5px solid var(--sep); background: var(--panel-2);
+  cursor: pointer; transition: border-color .16s, background .16s;
 }
-.disc-bar-wrap:hover .disc-tip { opacity:1; }
-@media (prefers-reduced-motion: reduce){
-  .disc-tip { transition:none; }
-  .disc-bar-wrap:hover .disc-tip { opacity:1; }
+.font-item:hover { background: var(--fill-hover); }
+.font-item.on { border-color: var(--accent); background: rgba(0,113,227,.07); }
+.font-item b { display: block; font-size: 12.5px; font-weight: 500; }
+.font-item code { font-size: 10.5px; color: var(--text-3); font-family: var(--font-mono); word-break: break-all; }
+
+/* ---------- 提示条 ---------- */
+.toasts {
+  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; gap: 8px; z-index: 100; align-items: center;
 }
+.toast {
+  display: flex; align-items: center; gap: 9px;
+  background: var(--panel); color: var(--text);
+  border: 0.5px solid var(--sep); border-radius: 980px;
+  padding: 9px 16px; font-size: 12.5px;
+  box-shadow: var(--shadow-lg);
+  animation: toast-in .32s cubic-bezier(.32,.72,0,1);
+  max-width: 78vw;
+}
+.toast.err { border-color: rgba(255,59,48,.4); }
+.toast .ic { width: 16px; height: 16px; flex: none; }
+.toast.ok .ic { color: #30d158; } .toast.err .ic { color: #ff453a; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(14px) scale(.94); } }
+
+.empty { text-align: center; padding: 46px 20px; color: var(--text-3); font-size: 13px; }
+
+.hidden { display: none !important; }
 </style>
 </head>
 <body>
+<div class="app">
 
-<header>
-  <div class="logo">
-    <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
-      <rect width="80" height="80" rx="18" fill="var(--brand)"/>
-      <text x="40" y="52" font-size="40" font-weight="900" text-anchor="middle" fill="#0a121c" font-family="Arial">M</text>
-    </svg>
-    <h1>MiniMax Code <span style="color:var(--brand)">主题配置器</span></h1>
-  </div>
-  <div class="spacer"></div>
-  <span class="badge" id="badge-version">mcode: ...</span>
-  <span class="badge" id="badge-theme">主题: -</span>
-  <span class="badge" id="badge-plan">Plan: -</span>
-  <div class="header-actions">
-    <button class="btn ghost" id="btn-export" title="导出当前配色为主题包 JSON">导出主题包</button>
-    <button class="btn ghost" id="btn-import" title="从主题包 JSON 导入预览（不写盘）">导入主题包</button>
-    <input type="file" id="import-file" accept=".json,application/json" style="display:none">
-    <div class="c-drop" id="theme-drop" data-cdrop title="快速切换主题（仅预览，不写盘）"></div>
-    <button class="btn" id="btn-save" title="将当前配色保存为新主题">保存主题</button>
-    <button class="btn ghost" id="btn-restore">恢复官方</button>
-    <button class="btn primary" id="btn-apply">应用到 mcode</button>
-  </div>
-</header>
-
-<div class="layout">
-
-  <div id="status-card">
-    <div class="sc-col" id="sc-current">
-      <div class="sc-head"><span class="sc-title">当前主题</span><span class="sc-badge none" id="sc-cur-badge">未设置</span></div>
-      <div class="sc-name" id="sc-cur-name">-</div>
-      <div class="sc-meta" id="sc-cur-meta"></div>
-      <div class="sc-swatches" id="sc-cur-swatches"></div>
-      <div class="sc-guide" id="sc-cur-guide"></div>
+  <!-- ===================== 标题栏 ===================== -->
+  <header class="titlebar">
+    <div class="lights" aria-hidden="true">
+      <span class="light r"></span><span class="light y"></span><span class="light g"></span>
     </div>
-    <div class="sc-col" id="sc-plan">
-      <div class="sc-head"><span class="sc-title">Plan 模式主题</span><span class="sc-badge none" id="sc-plan-badge">未设置</span></div>
-      <div class="sc-name" id="sc-plan-name">-</div>
-      <div class="sc-meta">Shift+Tab 进入 Plan 模式时自动切换，退出恢复当前主题</div>
-      <div class="sc-swatches" id="sc-plan-swatches"></div>
-      <div class="sc-guide"></div>
-    </div>
-  </div>
+    <div class="title">mcode-theme <small id="mcodeVer">MiniMax Code</small></div>
+    <div class="spacer"></div>
+    <div class="status-pill" id="statusPill"><span class="dot"></span><span id="statusText">加载中…</span></div>
+    <button class="icon-btn" id="btnThemeMode" title="切换界面外观">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1A.75.75 0 0 1 8 1.5Zm0 10a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1A.75.75 0 0 1 8 11.5ZM14.5 8a.75.75 0 0 1-.75.75h-1a.75.75 0 0 1 0-1.5h1a.75.75 0 0 1 .75.75Zm-11 0a.75.75 0 0 1-.75.75h-1a.75.75 0 0 1 0-1.5h1A.75.75 0 0 1 3.5 8ZM12.95 3.05a.75.75 0 0 1 0 1.06l-.7.7a.75.75 0 1 1-1.06-1.06l.7-.7a.75.75 0 0 1 1.06 0ZM4.81 11.19a.75.75 0 0 1 0 1.06l-.7.7a.75.75 0 1 1-1.06-1.06l.7-.7a.75.75 0 0 1 1.06 0Zm7.44 1.76a.75.75 0 0 1-1.06 0l-.7-.7a.75.75 0 1 1 1.06-1.06l.7.7a.75.75 0 0 1 0 1.06ZM3.05 12.95a.75.75 0 0 1 0-1.06l.7-.7a.75.75 0 0 1 1.06 1.06l-.7.7a.75.75 0 0 1-1.06 0Z"/></svg>
+    </button>
+    <button class="btn" id="btnRestore" title="清除选中项，回到 mcode 内置主题">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 3.5a4.5 4.5 0 1 0 4.36 5.56.75.75 0 0 1 1.46-.34A6 6 0 1 1 8 2v2.5a.25.25 0 0 1-.427.177L5.6 2.71a.25.25 0 0 1 0-.354L7.573.423A.25.25 0 0 1 8 .6V3.5Z"/></svg>
+      恢复默认
+    </button>
+    <button class="btn primary" id="btnApply" title="写入 mcode 原生主题目录并立即生效">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5a.75.75 0 0 1 .75.75v6.19l2.22-2.22a.75.75 0 1 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 0 1 1.06-1.06l2.22 2.22V2.25A.75.75 0 0 1 8 1.5Z"/></svg>
+      应用主题
+    </button>
+  </header>
 
-  <nav id="nav"></nav>
-
-  <main>
-    <div class="panel" id="panel"></div>
-    <div id="preview-wrap">
-      <div class="pv-head">
-        <span>实时预览（模拟 mcode 界面）</span>
-        <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end">
-          <span class="pv-src" id="pv-src">
-            <span class="pv-src-seg" role="group" aria-label="预览源">
-              <button id="pv-src-sim" class="on" type="button">模拟</button>
-              <button id="pv-src-real" type="button">真实</button>
-            </span>
-            <span id="pv-src-controls" style="display:none;align-items:center;gap:6px">
-              <div class="c-drop pv-src-select" id="session-drop" data-cdrop></div>
-              <button class="pv-src-refresh" id="pv-src-refresh" type="button" title="刷新会话列表">↻</button>
-            </span>
-          </span>
-          <button class="pv-appearance-btn" id="pv-appearance-btn" title="切换预览外观">🌙 暗</button>
-          <span id="pv-font-label">字体: 系统</span>
-        </span>
+  <!-- ===================== 侧栏 ===================== -->
+  <aside class="sidebar">
+    <div class="search-wrap">
+      <div class="search">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.74 10.34a5.5 5.5 0 1 0-1.4 1.4l3.2 3.2a1 1 0 0 0 1.4-1.4l-3.2-3.2ZM2.5 6.75a4.25 4.25 0 1 1 8.5 0 4.25 4.25 0 0 1-8.5 0Z"/></svg>
+        <input id="search" type="search" placeholder="搜索主题" autocomplete="off" spellcheck="false">
       </div>
-      <div id="preview"></div>
+    </div>
+    <div class="side-head"><span>主题库</span><span class="count" id="themeCount"></span></div>
+    <div class="theme-list" id="themeList"></div>
+  </aside>
+
+  <!-- ===================== 主区 ===================== -->
+  <main class="main">
+    <div class="main-inner">
+
+      <div class="segmented" id="tabs">
+        <div class="thumb" id="tabThumb"></div>
+        <button data-tab="preview" class="on">实时预览</button>
+        <button data-tab="ui">界面配色</button>
+        <button data-tab="syntax">语法高亮</button>
+        <button data-tab="ansi">ANSI 降级</button>
+        <button data-tab="contrast">对比度</button>
+      </div>
+
+      <!-- 预览 -->
+      <section id="tab-preview">
+        <div class="section-head">
+          <h2 id="pvTitle">实时预览</h2>
+          <p id="pvDesc">调色改动即时反映在下方模拟界面。点「应用主题」写入 mcode 的原生主题目录后，CLI 内 <code>/theme</code> 即可热切换。</p>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h3>MiniMax Code 终端界面</h3>
+            <span class="sub" id="pvAppearance"></span>
+            <div class="spacer"></div>
+            <div class="segmented mini" id="variantSeg">
+              <div class="thumb"></div>
+              <button data-var="dark" class="on">深色</button>
+              <button data-var="light">浅色</button>
+            </div>
+            <span class="sub" id="pvSource"></span>
+          </div>
+          <div class="card-body">
+            <div class="preview" id="preview"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>会话预览</h3>
+            <span class="sub">读取最近会话（只读）</span>
+            <div class="spacer"></div>
+            <button class="btn ghost" id="btnSessions">刷新</button>
+          </div>
+          <div class="card-body" id="sessionBox"><div class="empty">加载中…</div></div>
+        </div>
+      </section>
+
+      <!-- 配色 -->
+      <section id="tab-ui" class="hidden">
+        <div class="section-head">
+          <h2>界面配色</h2>
+          <p>20 个 UI 键，与 mcode 0.7.0 原生 schema 一一对应。</p>
+        </div>
+        <div class="card"><div class="card-body"><div class="color-grid" id="uiGrid"></div>
+          <div class="row-note">提示：0.7.0 新增的 markdown / diff 五个键若留空，将沿用 mcode 内置取值。</div>
+        </div></div>
+      </section>
+
+      <section id="tab-syntax" class="hidden">
+        <div class="section-head">
+          <h2>语法高亮</h2>
+          <p>13 个语法键，对应代码块中的着色角色。</p>
+        </div>
+        <div class="card"><div class="card-body"><div class="color-grid" id="synGrid"></div></div></div>
+      </section>
+
+      <section id="tab-ansi" class="hidden">
+        <div class="section-head">
+          <h2>ANSI 降级色</h2>
+          <p>终端仅支持 8/16 色时使用（<code>colorLevel=1</code>）。</p>
+        </div>
+        <div class="card"><div class="card-body"><div class="color-grid" id="ansiGrid"></div></div></div>
+      </section>
+
+      <section id="tab-contrast" class="hidden">
+        <div class="section-head">
+          <h2>对比度检查</h2>
+          <p>按 WCAG 2.1 相对亮度计算，校验正文与强调色在当前背景上的可读性。</p>
+        </div>
+        <div class="card"><div class="card-head"><h3>正文 / 背景</h3></div>
+          <div class="card-body"><div class="contrast-list" id="contrastList"></div>
+          <div class="row-note">AA：正文 ≥ 4.5:1，大字/强调 ≥ 3:1；AAA：正文 ≥ 7:1。</div>
+        </div></div>
+        <div class="card">
+          <div class="card-head"><h3>字体</h3><span class="sub">仅影响本地预览</span></div>
+          <div class="card-body"><div class="font-list" id="fontList"></div></div>
+        </div>
+      </section>
+
     </div>
   </main>
 </div>
 
-<div id="toast"></div>
+<div class="toasts" id="toasts"></div>
 
 <script>
-const $ = s => document.querySelector(s);
-let STATE = null;
-let currentPanel = 'ui';
-let dirty = {};   // { 'colors.brand': '#xxxxxx' }
-let themeDrop = null;
-// 预览外观：'live' 跟随当前编辑 | 'dark' | 'light'（仅影响预览区，用 defaults 渲染）
-let pvAppearance = 'live';
-const USAGE = {
-  brand:'Logo/标题/品牌', wordmarkHighlight:'Logo 高光', wordmarkShadow:'Logo 阴影',
-  signal:'状态点/强调', orbit:'辅助强调', accent:'链接/代码/选中/徽标',
-  userMessageBg:'用户消息背景', text:'正文文字', muted:'弱化文字', dim:'次级文字',
-  border:'边框', line:'分隔线', success:'成功/完成', warning:'警告', error:'错误'
-};
-const SYN_USAGE = {
-  blue:'函数名/属性', flamingo:'符号/类', green:'字符串', mauve:'关键字', overlay2:'注释',
-  peach:'数字/字面量', pink:'正则', red:'内置/删除', sapphire:'链接', subtext0:'次级文本',
-  teal:'标签/标记', text:'默认文本', yellow:'类型/类名'
-};
-const ANSI_USAGE = {
-  brand:'品牌(8色)', wordmarkHighlight:'Logo高光', wordmarkShadow:'Logo阴影', signal:'状态点',
-  orbit:'辅助', accent:'强调', text:'正文', muted:'弱化', dim:'次级', border:'边框', line:'分隔线',
-  success:'成功', warning:'警告', error:'错误'
+"use strict";
+
+/* ============================================================
+   状态
+   ============================================================ */
+const S = {
+  themes: [], current: null, status: null,
+  defaults: { ui: {}, ansi: {}, syntax: {} },
+  uiKeys: [], syntaxKeys: [], ansiKeys: [], fonts: [], version: "",
+  theme: null,            // 当前编辑中的主题对象
+  baseName: null,         // 原始主题名（保存用）
+  font: null,
+  tab: "preview",
 };
 
-const MODULES = [
-  { id:'ui', name:'UI 配色', desc:'界面主色调 · 15 键', keys:'colors', usage:USAGE },
-  { id:'syntax', name:'代码语法高亮', desc:'代码块配色 · 13 键', keys:'syntax', usage:SYN_USAGE },
-  { id:'ansi', name:'ANSI 8 色回退', desc:'低色深终端 · 14 键', keys:'ansi', usage:ANSI_USAGE },
-  { id:'plan', name:'Plan 模式主题', desc:'Shift+Tab 自动切换', keys:null },
-  { id:'logo', name:'Logo 颜色', desc:'登录页品牌色', keys:null },
-  { id:'font', name:'字体', desc:'预览字体 + 终端指引', keys:null },
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+
+async function api(path, opts) {
+  const res = await fetch(path, Object.assign({ headers: { "Content-Type": "application/json" } }, opts || {}));
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+  return data;
+}
+
+/* ============================================================
+   Toast
+   ============================================================ */
+const ICON_OK = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13Zm3.28 4.72a.75.75 0 0 0-1.06-1.06L7.25 8.13 5.78 6.66a.75.75 0 0 0-1.06 1.06l2 2a.75.75 0 0 0 1.06 0l3.5-3.5Z"/></svg>';
+const ICON_ERR = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13ZM8 4a.75.75 0 0 0-.75.75v3.5a.75.75 0 0 0 1.5 0v-3.5A.75.75 0 0 0 8 4Zm0 6.25a.9.9 0 1 0 0-1.8.9.9 0 0 0 0 1.8Z"/></svg>';
+
+function toast(msg, kind) {
+  const el = document.createElement("div");
+  el.className = "toast " + (kind || "ok");
+  el.innerHTML = '<span class="ic">' + (kind === "err" ? ICON_ERR : ICON_OK) + "</span><span></span>";
+  el.lastChild.textContent = msg;
+  $("#toasts").appendChild(el);
+  setTimeout(() => {
+    el.style.transition = "opacity .28s, transform .28s";
+    el.style.opacity = "0";
+    el.style.transform = "translateY(8px)";
+    setTimeout(() => el.remove(), 300);
+  }, kind === "err" ? 4600 : 2400);
+}
+
+/* ============================================================
+   颜色工具
+   ============================================================ */
+function hexToRgb(h) {
+  h = String(h || "").replace("#", "").trim();
+  if (h.length === 3) h = h.split("").map(c => c + c).join("");
+  if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+function rgbToHex(r, g, b) {
+  return "#" + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+function relLum(hex) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return 0;
+  const ch = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  return 0.2126 * ch(rgb[0]) + 0.7152 * ch(rgb[1]) + 0.0722 * ch(rgb[2]);
+}
+function contrast(a, b) {
+  const la = relLum(a), lb = relLum(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+/* ============================================================
+   主题库列表
+   ============================================================ */
+function renderThemeList() {
+  const box = $("#themeList");
+  const q = ($("#search").value || "").trim().toLowerCase();
+  const list = S.themes.filter(t => !q || t.toLowerCase().includes(q));
+  $("#themeCount").textContent = list.length === S.themes.length
+    ? S.themes.length + " 个" : list.length + " / " + S.themes.length;
+
+  if (!list.length) {
+    box.innerHTML = '<div class="empty">没有匹配的主题</div>';
+    return;
+  }
+  box.innerHTML = "";
+  for (const name of list) {
+    const btn = document.createElement("button");
+    btn.className = "theme-item" + (name === S.baseName ? " active" : "");
+    btn.dataset.name = name;
+    const strip = document.createElement("span");
+    strip.className = "swatch-strip";
+    btn.appendChild(strip);
+    const box2 = document.createElement("span");
+    box2.className = "tname";
+    const main = document.createElement("span");
+    main.className = "tname-main";
+    main.textContent = prettyName(name);
+    const sub = document.createElement("span");
+    sub.className = "tname-sub";
+    const vars = (S.variants && S.variants[name]) || [];
+    sub.textContent = vars.length > 1 ? name + " · 明/暗" : name;
+    box2.appendChild(main); box2.appendChild(sub);
+    btn.appendChild(box2);
+    if (name === S.current) {
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = "使用中";
+      btn.appendChild(badge);
+    }
+    btn.addEventListener("click", () => selectTheme(name));
+    box.appendChild(btn);
+  }
+  // 主题条色（用已加载的 colors）
+  for (const el of $$(".theme-item", box)) {
+    const name = el.dataset.name;
+    const cache = S.themeCache && S.themeCache[name];
+    const t = cache && (cache[S.appearance] || cache.dark || Object.values(cache)[0]);
+    const strip = $(".swatch-strip", el);
+    if (!t) { strip.remove(); continue; }
+    const keys = ["brand", "accent", "userMessageBg", "text"];
+    for (const k of keys) {
+      const i = document.createElement("i");
+      i.style.background = (t.colors && t.colors[k]) || "#888";
+      strip.appendChild(i);
+    }
+  }
+}
+
+function prettyName(name) {
+  const m = S.labels && S.labels[name];
+  if (m) return m;
+  return name.split(/[-_]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+
+/* ============================================================
+   载入主题
+   ============================================================ */
+async function selectTheme(name, appearance) {
+  try {
+    const q = appearance ? ("?appearance=" + encodeURIComponent(appearance)) : "";
+    const t = await api("/api/theme/" + encodeURIComponent(name) + q);
+    S.theme = t;
+    S.baseName = t.name || name;
+    S.appearance = t.appearance || "dark";
+    S.themeCache = S.themeCache || {};
+    S.themeCache[name] = S.themeCache[name] || {};
+    S.themeCache[name][S.appearance] = t;
+    S.labels = S.labels || {};
+    S.labels[name] = t.label || prettyName(name);
+    renderThemeList();
+    renderAll();
+    updatePreview();
+    updateContrast();
+    renderVariantSeg();
+  } catch (e) {
+    toast("读取主题失败：" + e.message, "err");
+  }
+}
+
+function renderVariantSeg() {
+  const seg = $("#variantSeg");
+  if (!seg) return;
+  const vars = (S.theme && S.theme.variants) || [];
+  const dark = seg.querySelector('[data-var="dark"]');
+  const light = seg.querySelector('[data-var="light"]');
+  dark.classList.toggle("hidden", vars.length && !vars.includes("dark"));
+  light.classList.toggle("hidden", vars.length && !vars.includes("light"));
+  seg.classList.toggle("hidden", vars.length < 2);
+  $$("#variantSeg button").forEach(b => b.classList.toggle("on", b.dataset.var === S.appearance));
+  moveVarThumb();
+}
+
+function moveVarThumb() {
+  const seg = $("#variantSeg");
+  if (!seg || seg.classList.contains("hidden")) return;
+  const on = seg.querySelector("button.on");
+  const thumb = seg.querySelector(".thumb");
+  if (!on || !thumb) return;
+  thumb.style.width = on.offsetWidth + "px";
+  thumb.style.transform = "translateX(" + (on.offsetLeft - 1) + "px)";
+}
+
+/* ============================================================
+   颜色行渲染
+   ============================================================ */
+const UI_LABELS = {
+  brand: "品牌色", wordmarkHighlight: "字标高光", wordmarkShadow: "字标阴影",
+  signal: "信号色", orbit: "轨道色", accent: "强调色",
+  markdownHeading: "标题高亮", markdownCode: "代码高亮", markdownLink: "链接色",
+  userMessageBg: "用户气泡底", diffAddedBg: "新增行底", diffRemovedBg: "删除行底",
+  text: "正文", muted: "次要文字", dim: "弱化文字",
+  border: "边框", line: "分隔线", success: "成功", warning: "警告", error: "错误",
+};
+
+function colorRow(group, key, label) {
+  const row = document.createElement("div");
+  row.className = "color-row";
+
+  const sw = document.createElement("label");
+  sw.className = "swatch";
+  const cur = getColor(group, key);
+  sw.style.background = cur || "#000000";
+  const inp = document.createElement("input");
+  inp.type = "color";
+  inp.value = normHex(cur);
+  inp.addEventListener("input", () => setColor(group, key, inp.value));
+  sw.appendChild(inp);
+  row.appendChild(sw);
+
+  const lab = document.createElement("div");
+  lab.className = "color-label";
+  const b = document.createElement("b");
+  b.textContent = label || key;
+  const sp = document.createElement("span");
+  sp.textContent = key;
+  lab.appendChild(b); lab.appendChild(sp);
+  row.appendChild(lab);
+
+  const hex = document.createElement("input");
+  hex.className = "hex-input";
+  hex.type = "text";
+  hex.spellcheck = false;
+  hex.value = normHex(cur);
+  hex.addEventListener("change", () => {
+    const v = hex.value.trim();
+    if (!/^#?[0-9a-fA-F]{6}$/.test(v)) { hex.classList.add("bad"); setTimeout(() => hex.classList.remove("bad"), 900); return; }
+    hex.classList.remove("bad");
+    setColor(group, key, v.startsWith("#") ? v : "#" + v);
+  });
+  row.appendChild(hex);
+
+  row.dataset.group = group;
+  row.dataset.key = key;
+  return row;
+}
+
+function normHex(v) {
+  if (typeof v !== "string") return "#000000";
+  const rgb = hexToRgb(v);
+  return rgb ? rgbToHex.apply(null, rgb) : "#000000";
+}
+
+function getColor(group, key) {
+  const t = S.theme || {};
+  if (group === "colors") return (t.colors && t.colors[key]) || "";
+  if (group === "syntax") return (t.syntax && t.syntax[key]) || "";
+  if (group === "ansi") return (t.ansi && t.ansi[key]) || "";
+  return "";
+}
+
+function setColor(group, key, val) {
+  if (!S.theme) return;
+  if (!S.theme[group]) S.theme[group] = {};
+  S.theme[group][key] = val;
+  syncRow(group, key, val);
+  updatePreview();
+  updateContrast();
+}
+
+function syncRow(group, key, val) {
+  const row = $(`.color-row[data-group="${group}"][data-key="${key}"]`);
+  if (!row) return;
+  const sw = $(".swatch", row), hex = $(".hex-input", row);
+  const rgb = hexToRgb(val);
+  sw.style.background = val;
+  $("input", sw).value = rgb ? normHex(val) : "#000000";
+  hex.value = val;
+}
+
+function renderGroup(gridId, group, keys) {
+  const grid = $(gridId);
+  grid.innerHTML = "";
+  for (const k of keys) {
+    grid.appendChild(colorRow(group, k, group === "colors" ? UI_LABELS[k] : null));
+  }
+}
+
+/* ============================================================
+   预览
+   ============================================================ */
+const LOGO = [
+  "    ███╗   ███╗██╗███╗   ██╗██╗███╗   ███╗ ██████╗ ██╗  ██╗     ██████╗ ██████╗ ██████╗ ███████╗   ",
+  "    ████╗ ████║██║████╗  ██║██║████╗ ████║██╔══██╗╚██╗██╔╝    ██╔════╝██╔═══██╗██╔══██╗██╔════╝   ",
+  "    ██╔████╔██║██║██╔██╗ ██║██║██╔████╔██║███████║ ╚███╔╝     ██║     ██║   ██║█████╔╝██║  ███╗   ",
+  "    ██║╚██╔╝██║██║██║╚██╗██║██║██║╚██╔╝██║██╔══██║ ██╔██╗     ██║     ██║   ██║██╔══██╗██║   ██║   ",
+  "    ██║ ╚═╝ ██║██║██║ ╚████║██║ ██║  ██║██╔╝  ██║██╔╝ ██╗    ╚██████╗╚██████╔╝█████╔╝╚██████╔╝   ",
+  "    ╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝   ╚═╝╚═╝  ╚═╝     ╚═════╝ ╚═════╝ ╚════╝ ╚═════╝    ",
 ];
 
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function updatePreview() {
+  const pv = $("#preview");
+  const c = (S.theme && S.theme.colors) || {};
+  const s = (S.theme && S.theme.syntax) || {};
+  const set = (k, v) => pv.style.setProperty("--p-" + k, v || "transparent");
 
-async function api(path, body){
-  const opt = body ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)} : {};
-  const r = await fetch(path, opt);
-  // 兼容: 标准 Response 或已解析对象
-  const j = (typeof r.json === 'function') ? await r.json().catch(()=>({})) : r;
-  if(r.ok === false) throw new Error(j.error || r.status);
-  return j;
-}
+  set("brand", c.brand); set("brand-hi", c.wordmarkHighlight); set("brand-lo", c.wordmarkShadow);
+  set("orbit", c.orbit); set("userbg", c.userMessageBg);
+  set("text", c.text); set("muted", c.muted); set("dim", c.dim);
+  set("border", c.border); set("line", c.line);
+  set("success", c.success); set("warning", c.warning); set("error", c.error);
+  set("md-h", c.markdownHeading || s.mauve); set("md-c", c.markdownCode || s.green); set("md-l", c.markdownLink || s.blue);
 
-function applyCSSVars(theme){
-  const c = theme.colors||{};
-  const s = theme.syntax||{};
-  const st = document.documentElement.style;
-  st.setProperty('--brand',c.brand); st.setProperty('--hl',c.wordmarkHighlight); st.setProperty('--shadow',c.wordmarkShadow);
-  st.setProperty('--signal',c.signal); st.setProperty('--orbit',c.orbit); st.setProperty('--accent',c.accent);
-  st.setProperty('--umbg',c.userMessageBg); st.setProperty('--text',c.text); st.setProperty('--muted',c.muted);
-  st.setProperty('--dim',c.dim); st.setProperty('--border',c.border); st.setProperty('--line',c.line);
-  st.setProperty('--success',c.success); st.setProperty('--warning',c.warning); st.setProperty('--error',c.error);
-  st.setProperty('--syn-blue',s.blue); st.setProperty('--syn-flamingo',s.flamingo); st.setProperty('--syn-green',s.green);
-  st.setProperty('--syn-mauve',s.mauve); st.setProperty('--syn-overlay',s.overlay2); st.setProperty('--syn-peach',s.peach);
-  st.setProperty('--syn-pink',s.pink); st.setProperty('--syn-red',s.red); st.setProperty('--syn-sapphire',s.sapphire);
-  st.setProperty('--syn-subtext',s.subtext0); st.setProperty('--syn-teal',s.teal); st.setProperty('--syn-text',s.text);
-  st.setProperty('--syn-yellow',s.yellow);
-}
+  const logo = LOGO.map((ln, i) =>
+    '<span class="l' + (i === 0 ? 0 : i < 3 ? 1 : 2) + '">' + ln.replace(/&/g, "&amp;").replace(/</g, "&lt;") + "</span>").join("\n");
 
-// WCAG 对比度（hex → ratio）
-function contrastRatio(hex1, hex2){
-  function lum(hex){
-    const ch = hex.replace('#','').match(/[0-9a-f]{2}/gi).map(x=>parseInt(x,16)/255);
-    const f = ch.map(v => v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4));
-    return 0.2126*f[0] + 0.7152*f[1] + 0.0722*f[2];
-  }
-  const l1=lum(hex1), l2=lum(hex2);
-  const hi=Math.max(l1,l2), lo=Math.min(l1,l2);
-  return (hi+0.05)/(lo+0.05);
-}
+  pv.innerHTML =
+    '<div class="pv-logo">' + logo + "</div>" +
+    '<div class="pv-user">帮我把这个二进制里的 flag 找出来</div>' +
+    '<div class="pv-ai">' +
+      "<h4>分析完成</h4>" +
+      "<p>发现 <a href=\"#\">vulnerable</a> 函数存在栈溢出，可以构造 ROP 链覆盖返回地址。</p>" +
+      '<div class="pv-code"><span class="c-cm">// payload</span>\n' +
+      '<span class="c-kw">from</span> pwn <span class="c-kw">import</span> *\n' +
+      '<span class="c-fn">p64</span>(<span class="c-str">b"A"</span> * <span class="c-str">0x40</span> + <span class="c-fn">p64</span>(<span class="c-fn">addr</span>))</div>' +
+      "<p>建议先用 <code>checksec</code> 确认保护开启情况。</p>" +
+    "</div>" +
+    '<div class="pv-foot"><div class="pv-input">继续输入…</div>' +
+    '<span class="pv-hint"><kbd>⌘</kbd><kbd>K</kbd> 命令 · <kbd>⇧</kbd><kbd>Tab</kbd> 计划</span></div>';
 
-// ============ 五段渐变（上浅下深，与 cli.js 运行时派生同规则） ============
-function lumOfHex(hex){
-  const c = [1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255);
-  const l = c.map(v=>Math.pow(v,2.2));
-  return 0.2126*l[0] + 0.7152*l[1] + 0.0722*l[2];
-}
-function lerpHex(a, b, t){
-  // 线性 RGB（gamma 2.2）插值，保证亮度单调
-  const pa = [1,3,5].map(i=>Math.pow(parseInt(a.slice(i,i+2),16)/255, 2.2));
-  const pb = [1,3,5].map(i=>Math.pow(parseInt(b.slice(i,i+2),16)/255, 2.2));
-  return '#' + pa.map((v,i)=>('0'+Math.round(Math.pow(v+(pb[i]-v)*t, 1/2.2)*255).toString(16)).slice(-2)).join('');
-}
-function darkenHex(hex){
-  // HSL 空间 L ×0.85（与运行时 darken 一致）
-  const [r,g,b] = [1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255);
-  const mx=Math.max(r,g,b), mn=Math.min(r,g,b);
-  const l=(mx+mn)/2, d=mx-mn;
-  const s = l>0.5 ? d/(2-mx-mn) : d/(mx+mn||1);
-  let h=0;
-  if(d){ if(mx===r) h=((g-b)/d)%6; else if(mx===g) h=(b-r)/d+2; else h=(r-g)/d+4; }
-  h=(h*60+360)%360;
-  const nl=Math.min(1,l*0.85), c=(1-Math.abs(2*nl-1))*s, x=c*(1-Math.abs((h/60)%2-1)), m2=nl-c/2;
-  const vv=[[c,x,0],[x,c,0],[0,c,x],[0,x,c],[x,0,c],[c,0,x]][Math.floor(h/60)%6];
-  return '#' + vv.map(v=>('0'+Math.round((v+m2)*255).toString(16)).slice(-2)).join('');
-}
-// 返回 [段1..段5]（与 GitHub 仓库版本渐变颜色一致）：
-// 段1=wordmarkHighlight、段3=brand、段5=wordmarkShadow 全部为主题三键原色，
-// 段2=lerp(hl,brand,0.5)、段4=lerp(brand,shadow,0.5)（RGB 通道线性插值）
-function fiveStop(top, brand, shadow){
-  const hp = h => [1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
-  const fmt = c => '#' + c.map(v=>('0'+Math.round(v).toString(16)).slice(-2)).join('');
-  const lerp = (a,b,t) => a.map((v,i)=>v+(b[i]-v)*t);
-  const A = hp(top), B = hp(brand), C = hp(shadow);
-  return [A, lerp(A,B,0.5), B, lerp(B,C,0.5), C].map(fmt);
+  if (S.font) pv.style.fontFamily = S.font;
+  $("#pvAppearance").textContent = (S.theme && S.theme.appearance) === "light" ? "浅色外观" : "深色外观";
+  $("#pvSource").textContent = S.baseName ? "主题：" + S.baseName : "";
+  $("#pvTitle").textContent = (S.theme && S.theme.label) || prettyName(S.baseName || "");
+  $("#pvDesc").innerHTML = (S.theme && S.theme.description)
+    ? escapeHtml(S.theme.description)
+    : "调色改动即时反映在下方模拟界面。点「应用主题」写入 mcode 的原生主题目录后，CLI 内 <code>/theme</code> 即可热切换。";
 }
 
-// 预览渲染：pvAppearance!=='live' 时仅预览区用 defaults[light|dark] 色
-function previewVars(theme){
-  const c = theme.colors||{};
-  const s = theme.syntax||{};
-  return `--brand:${c.brand};--hl:${c.wordmarkHighlight};--shadow:${c.wordmarkShadow};`+
-    `--signal:${c.signal};--orbit:${c.orbit};--accent:${c.accent};`+
-    `--umbg:${c.userMessageBg};--text:${c.text};--muted:${c.muted};--dim:${c.dim};`+
-    `--border:${c.border};--line:${c.line};--success:${c.success};--warning:${c.warning};--error:${c.error};`+
-    `--syn-blue:${s.blue};--syn-flamingo:${s.flamingo};--syn-green:${s.green};--syn-mauve:${s.mauve};`+
-    `--syn-overlay:${s.overlay2};--syn-peach:${s.peach};--syn-pink:${s.pink};--syn-red:${s.red};`+
-    `--syn-sapphire:${s.sapphire};--syn-subtext:${s.subtext0};--syn-teal:${s.teal};--syn-text:${s.text};`+
-    `--syn-yellow:${s.yellow}`;
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function renderPreview(){
-  const font = localStorage.getItem('mcode-theme-font') || '';
-  document.documentElement.style.setProperty('--font', font || "ui-monospace, Consolas, monospace");
-  $('#pv-font-label').textContent = '字体: ' + (localStorage.getItem('mcode-theme-font-name') || '系统');
-  // 预览外观色源
-  let srcTheme = null;
-  let apprLabel = '跟随编辑';
-  if(STATE && STATE.defaults && pvAppearance !== 'live'){
-    srcTheme = {
-      colors: STATE.defaults.ui[pvAppearance] || {},
-      syntax: STATE.defaults.syntax[pvAppearance] || {},
-    };
-    apprLabel = pvAppearance === 'dark' ? '🌙 暗' : '☀ 亮';
-  } else {
-    apprLabel = pvAppearance === 'live' ? '跟随编辑' : (pvAppearance === 'dark' ? '🌙 暗' : '☀ 亮');
-  }
-  const localVars = srcTheme ? `style="${previewVars(srcTheme)}"` : '';
-  const apprBtn = $('#pv-appearance-btn');
-  if(apprBtn){
-    apprBtn.textContent = pvAppearance==='live' ? '跟随编辑' : (pvAppearance==='dark' ? '🌙 暗' : '☀ 亮');
-  }
-  // 五段渐变（上浅下深）：段1=hl(顶) → 段3=brand → 段5=shadow(底)；
-  // SVG 线性渐变 y1=1(底)→y2=0(顶)，offset 0 为底部，故 stop 按 shadow→hl 排列
-  const srcColors = srcTheme ? srcTheme.colors : (STATE && STATE.activeTheme ? STATE.activeTheme.colors : {});
-  const segs = fiveStop(srcColors.wordmarkHighlight||'#93D2FF', srcColors.brand||'#68C0FF', srcColors.wordmarkShadow||'#3DAEFF');
-  const logoStops = segs.map((c,i)=>`<stop offset="${(4-i)*25}%" stop-color="${c}"/>`).join('');
-  $('#preview').innerHTML = `
-  <div class="pv-shell">
-    <div class="pv-shell-bar">
-      <span class="pv-shell-dots"><i></i><i></i><i></i></span>
-      <span class="pv-shell-title">mcode — ${pvSource==='real' ? '真实会话预览' : '实时预览'}${pvAppearance!=='live' ? ' · ' + apprLabel : ''}</span>
-    </div>
-    <div class="pv-app" ${localVars}>
-    <div class="pv-top">
-      <div class="pv-logo">
-        <svg viewBox="0 0 80 80">
-          <defs><linearGradient id="pv-logo-grad" x1="0" y1="1" x2="0" y2="0">
-            ${logoStops}
-          </linearGradient></defs>
-          <rect width="80" height="80" rx="18" fill="url(#pv-logo-grad)"/>
-          <text x="40" y="52" font-size="40" font-weight="900" text-anchor="middle" fill="#0a121c" font-family="Arial">M</text>
-        </svg>
-        <span class="pv-name"><span class="a">MiniMax</span><span class="b"> Code</span></span>
-      </div>
-      <div class="status"><span class="dot"></span><span style="color:var(--signal)">Ready</span><span style="color:var(--muted)">✦ MiniMax-M3</span></div>
-    </div>
-    <div class="pv-body">
-      ${pvSource==='real' ? renderRealBody() : `
-      <div class="pv-border-hint">border: var(--border) · line: var(--line)</div>
-      <div class="pv-alert success">✓ 已添加 · success 色</div>
-      <div class="pv-alert warning">⚠ 学号已存在 · warning 色</div>
-      <div class="pv-alert error">✗ 连接失败 · error 色</div>
-      <div class="pv-user"><div class="tag">You · userMessageBg</div>帮我写一个计算平均分的函数</div>
-      <div class="pv-ai">
-        <span class="hl">def average</span>(scores: <span class="succ">list[float]</span>) -&gt; <span class="succ">float</span>:<br>
-        <span class="muted"># 注释用 muted · 次级文字 dim</span><br>
-        <span class="dim">链接用 brand 色 · </span><span class="hl">accent 强调</span><br>
-        <span class="muted">代码块：</span>
-      </div>
-      <div class="pv-code">
-        <span class="k">def</span> <span class="f">average</span>(scores):<br>
-        &nbsp;&nbsp;<span class="s">"""计算平均分"""</span><br>
-        &nbsp;&nbsp;<span class="k">return</span> <span class="f">sum</span>(scores) / <span class="f">len</span>(scores)
-      </div>
-      <div class="pv-ai">搞定 ✅ <span class="succ">5 个测试全过</span></div>`}
-      ${renderSelBlock()}
-    </div>
-    <div class="pv-foot">
-      <span class="plan-badge">PLAN</span>
-      <span class="perm">Auto</span>
-      <span class="perm">·</span><span>~/projects</span>
-    </div>
-    <div class="pv-input" contenteditable="true">输入框 · Enter send</div>
-    </div>
-  </div>`;
-}
-
-// ============ 纪律检查 ============
-function hexToRgb(h){ h=h.replace('#',''); return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)]; }
-function hslOf(h){
-  const [r,g,b] = hexToRgb(h).map(v=>v/255);
-  const mx=Math.max(r,g,b), mn=Math.min(r,g,b);
-  let hh=0, s=0; const l=(mx+mn)/2;
-  if(mx!==mn){ const d=mx-mn; s = l>0.5 ? d/(2-mx-mn) : d/(mx+mn); }
-  if(mx===r) hh = ((g-b)/ (mx-mn||1)) % 6;
-  else if(mx===g) hh = (b-r)/(mx-mn||1) + 2;
-  else hh = (r-g)/(mx-mn||1) + 4;
-  return { h: ((hh*60)+360)%360, s, l };
-}
-function lumOf(h){
-  const [r,g,b] = hexToRgb(h).map(v=>v/255);
-  const lin = [r,g,b].map(v=>Math.pow(v, 2.2));
-  return 0.2126*lin[0] + 0.7152*lin[1] + 0.0722*lin[2];
-}
-// 纪律检查：返回 {fails:[string]}，同 validate-themes.py 规格（亮色主题放宽纪律1）
-function checkDiscipline(colors, isLight){
-  const fails = [];
-  const L = k => colors[k] && /^#[0-9a-fA-F]{6}$/.test(colors[k]) ? lumOf(colors[k]) : -1;
-  // 纪律1: 亮度全序（亮色主题反序）
-  if(!isLight){
-    for(const [a,b] of [['dim','muted'],['muted','text']])
-      if(!(L(a) < L(b))) fails.push(`纪律1: 亮度序 ${a}(${L(a).toFixed(2)}) → ${b}(${L(b).toFixed(2)})`);
-    for(const [a,b] of [['userMessageBg','border'],['border','line']])
-      if(!(L(a) < L(b))) fails.push(`纪律1: 亮度序 ${a}(${L(a).toFixed(2)}) → ${b}(${L(b).toFixed(2)})`);
-  } else {
-    for(const [a,b] of [['text','muted'],['muted','dim']])
-      if(!(L(a) < L(b))) fails.push(`纪律1: 亮度序 ${a}(${L(a).toFixed(2)}) → ${b}(${L(b).toFixed(2)})`);
-    for(const [a,b] of [['line','border'],['border','userMessageBg']])
-      if(!(L(a) < L(b))) fails.push(`纪律1: 亮度序 ${a}(${L(a).toFixed(2)}) → ${b}(${L(b).toFixed(2)})`);
-  }
-  // 纪律2: text/muted/dim 差 ≥0.10
-  for(const [a,b] of [['text','muted'],['text','dim'],['muted','dim']])
-    if(Math.abs(L(a)-L(b)) < 0.10) fails.push(`纪律2: ${a}/${b} 亮度差 ${Math.abs(L(a)-L(b)).toFixed(2)} < 0.10`);
-  // 纪律3: umbg/border/line 色相偏差 ≤25°
-  const hues = ['userMessageBg','border','line'].map(k=>hslOf(colors[k]).h);
-  for(let i=0;i<3;i++) for(let j=i+1;j<3;j++){
-    let d = Math.abs(hues[i]-hues[j]); d = Math.min(d, 360-d);
-    if(d > 25) fails.push(`纪律3: 色相偏差 ${d.toFixed(0)}°`);
-  }
-  // 纪律4: 结构色饱和 ≤0.45（近白/近黑豁免）
-  for(const k of ['userMessageBg','border','line','muted','dim']){
-    const lv = L(k);
-    if(lv > 0.85 || lv < 0.05) continue;
-    if(hslOf(colors[k]).s > 0.45) fails.push(`纪律4: ${k} 饱和度 ${hslOf(colors[k]).s.toFixed(2)} > 0.45`);
-  }
-  // 纪律5: 品牌色族相等
-  const fam = new Set([colors.brand, colors.accent, colors.signal, colors.wordmarkHighlight]);
-  if(fam.size !== 1) fails.push('纪律5: 品牌色族发散');
-  return fails;
-}
-// 柱状图渲染：结构色组 + 强调组 + 语义组
-function renderDiscipline(colors){
-  const groups = [
-    { label:'结构色', keys:['userMessageBg','border','line','text','muted','dim'] },
-    { label:'强调色', keys:['brand','accent','signal','orbit'] },
-    { label:'语义色', keys:['success','warning','error'] },
+/* ============================================================
+   对比度
+   ============================================================ */
+function updateContrast() {
+  const box = $("#contrastList");
+  const c = (S.theme && S.theme.colors) || {};
+  const bg = c.userMessageBg || "#000000";
+  const checks = [
+    ["text", c.text, 4.5], ["muted", c.muted, 4.5], ["dim", c.dim, 3.0],
+    ["brand", c.brand, 3.0], ["accent", c.accent, 3.0],
+    ["success", c.success, 3.0], ["warning", c.warning, 3.0], ["error", c.error, 3.0],
   ];
-  const isLight = STATE && STATE.activeTheme && STATE.activeTheme.appearance === 'light';
-  const fails = checkDiscipline(colors, isLight);
-  const failSet = new Set();
-  fails.forEach(f=>{
-    const m = f.match(/(?:[\u4e00-\u9fa5]|\b)(\w+)\(/);
-    if(m && m[1]) failSet.add(m[1]);
+  box.innerHTML = "";
+  for (const [name, col, min] of checks) {
+    if (!col) continue;
+    const ratio = contrast(col, bg);
+    const el = document.createElement("div");
+    el.className = "contrast-item";
+    const sw = document.createElement("span");
+    sw.className = "swatch";
+    sw.style.background = col;
+    sw.style.width = "18px"; sw.style.height = "18px";
+    const nm = document.createElement("span");
+    nm.className = "nm"; nm.textContent = name;
+    const rt = document.createElement("span");
+    rt.className = "ratio"; rt.textContent = ratio.toFixed(2) + ":1";
+    const tag = document.createElement("span");
+    let cls = "bad";
+    if (ratio >= 7) cls = "aaa";
+    else if (ratio >= min && min <= 4.5) cls = "aa";
+    else if (ratio >= min) cls = "lg";
+    tag.className = "tagp " + cls;
+    tag.textContent = cls === "aaa" ? "AAA" : cls === "aa" ? "AA" : cls === "lg" ? "大字 OK" : "不足";
+    el.appendChild(sw); el.appendChild(nm); el.appendChild(rt); el.appendChild(tag);
+    box.appendChild(el);
+  }
+}
+
+/* ============================================================
+   字体
+   ============================================================ */
+function renderFonts() {
+  const box = $("#fontList");
+  box.innerHTML = "";
+  for (const f of S.fonts) {
+    const el = document.createElement("div");
+    el.className = "font-item" + (S.font === f.stack ? " on" : "");
+    const b = document.createElement("b");
+    b.textContent = f.name;
+    b.style.fontFamily = f.stack;
+    const c = document.createElement("code");
+    c.textContent = f.stack;
+    el.appendChild(b); el.appendChild(c);
+    el.addEventListener("click", () => { S.font = f.stack; renderFonts(); updatePreview(); });
+    box.appendChild(el);
+  }
+}
+
+/* ============================================================
+   Tabs
+   ============================================================ */
+function renderAll() {
+  renderGroup("#uiGrid", "colors", S.uiKeys);
+  renderGroup("#synGrid", "syntax", S.syntaxKeys);
+  renderGroup("#ansiGrid", "ansi", S.ansiKeys);
+  renderFonts();
+  updatePreview();
+  updateContrast();
+}
+
+function selectTab(tab) {
+  S.tab = tab;
+  $$("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
+  ["preview", "ui", "syntax", "ansi", "contrast"].forEach(t => {
+    $("#tab-" + t).classList.toggle("hidden", t !== tab);
   });
-  const html = groups.map(g=>`
-    <div class="disc-group">
-      <div class="g-label">${g.label}</div>
-      <div class="disc-bars">
-        <div class="disc-ref r85"></div><div class="disc-ref r60"></div><div class="disc-ref r30"></div>
-        ${g.keys.map(k=>{
-          const v = colors[k] || '#000000';
-          const lv = lumOf(v);
-          const h = Math.max(2, Math.min(100, lv*100));
-          const fail = failSet.has(k);
-          const tipLines = fails.filter(f=>f.includes(k));
-          return `<div class="disc-bar-wrap">
-            <div class="disc-bar fail" style="height:${h}px;background:${v}"></div>
-            <div class="disc-bar-name">${k}</div>
-            ${tipLines.length ? `<div class="disc-tip">${k} L=${lv.toFixed(2)}<br>${tipLines.join('<br>')}</div>` : ''}
-          </div>`;
-        }).join('')}
-      </div>
-    </div>`).join('');
-  return `<div class="disc-card">
-    <div class="disc-title">颜色纪律检查 <span style="font-size:10px;color:${fails.length?'var(--error)':'var(--success)'}">${fails.length?'✗ '+fails.length+' 项违反':'✓ 全部通过'}</span></div>
-    <div class="disc-sub">柱高 = 相对亮度；结构色组参考线 L=0.30/0.60/0.85。违反纪律的柱子标红。</div>
-    <div class="disc-groups">${html}</div>
-  </div>`;
-}
-
-// ============ 颜色→应用点映射 ============
-const HL_MAP = {
-  brand:['.pv-logo','.pv-name .b','.pv-top .dot','#btn-apply'],
-  wordmarkHighlight:['#pv-logo-grad stop[offset="100%"]'],
-  wordmarkShadow:['#pv-logo-grad stop[offset="0%"]'],
-  accent:['.pv-foot .plan-badge'],
-  signal:['.pv-top .dot'],
-  orbit:[],
-  userMessageBg:['.pv-user'],
-  text:['.pv-ai','.pv-input'],
-  muted:['.pv-user .tag','.pv-ai .muted','.pv-foot .perm'],
-  dim:['.pv-border-hint','.pv-foot'],
-  border:['.pv-app'],
-  line:['.pv-top','.pv-foot'],
-  success:['.pv-alert.success'],
-  warning:['.pv-alert.warning'],
-  error:['.pv-alert.error'],
-};
-let hlTimer = null;
-function highlightTargets(key){
-  const sel = HL_MAP[key] || [];
-  clearAllHighlights();
-  if(!sel.length) return;
-  const els = sel.map(s=>document.querySelector(s)).filter(Boolean);
-  els.forEach(el=>{
-    el.classList.add('hl-target');
-    el.dataset.hlKey = key;
-  });
-  clearTimeout(hlTimer);
-  hlTimer = setTimeout(()=>{
-    els.forEach(el=>{ el.classList.remove('hl-target'); el.classList.add('hl-fade'); setTimeout(()=>el.classList.remove('hl-fade'),200); });
-  }, 200);
-}
-function clearAllHighlights(){
-  document.querySelectorAll('.hl-target').forEach(el=>el.classList.remove('hl-target'));
-}
-
-// 增强颜色卡：重置按钮 + 对比度徽标（附加渲染，不改原结构）
-function colorItem(key, val, usage, prefix){
-  const dflt = STATE && STATE.defaults ? (STATE.defaults[prefix==='syn'?'syntax':(prefix==='ansi'?'ansi':'ui')] || {}) : {};
-  const defVal = (dflt.dark||{})[key] || '';
-  const showContrast = (prefix==='ui') && (key==='userMessageBg');
-  const isTextKey = key==='text';
-  let contrastHtml = '';
-  if(showContrast || isTextKey){
-    const t = STATE && STATE.activeTheme ? STATE.activeTheme.colors : {};
-    const text = t.text || (STATE && STATE.defaults ? (STATE.defaults.ui.dark||{}).text : '#EDEDED');
-    const umbg = t.userMessageBg || (STATE && STATE.defaults ? (STATE.defaults.ui.dark||{}).userMessageBg : '#1E3A5F');
-    const ratio = contrastRatio(text, umbg);
-    const ok = ratio >= 4.5;
-    const show = showContrast;
-    if(show){
-      contrastHtml = `<span class="contrast ${ok?'ok':'bad'}">${ok?'AA ✓':('✗ 对比度不足 ' + ratio.toFixed(1) + ':1')}</span>`;
-    }
-  }
-  return `<div class="color-item${contrastHtml?' has-contrast':''}">
-    <div class="swatch" style="background:${val}"><input type="color" id="${prefix}-${key}" value="${val}" data-key="${key}"></div>
-    <div class="meta"><div class="name">${key}</div><div class="usage">${usage[key]||''}</div></div>
-    <input class="hex" value="${val}" data-hex="${key}">
-    ${defVal ? `<button class="reset" data-reset="${prefix}-${key}" title="重置为默认" type="button">↺</button>` : ''}
-    ${contrastHtml}
-  </div>`;
-}
-
-async function loadTheme(name){
-  const t = await api('/api/theme/' + name);
-  STATE.activeTheme = t;
-  applyCSSVars(t);
-  dirty = {};
-  renderPreview();
-  renderPanel();
-  $('#badge-theme').textContent = '主题: ' + t.name + (t.appearance==='light'?' (亮)':'');
-  if(themeDrop) themeDrop.value = name;
-}
-
-function currentThemeObj(){
-  const t = STATE.activeTheme || {};
-  const out = { name:t.name||'live-edit', appearance:t.appearance||'dark', colors:{}, ansi:{}, syntax:{}, logo:t.logo };
-  for(const k of STATE.uiKeys) out.colors[k] = $('#ui-'+k)?.value || t.colors?.[k];
-  for(const k of STATE.ansiKeys) out.ansi[k] = $('#ansi-'+k)?.value || t.ansi?.[k];
-  for(const k of STATE.syntaxKeys) out.syntax[k] = $('#syn-'+k)?.value || t.syntax?.[k];
-  return out;
-}
-
-// 面板切换动效：重绘后强制 reflow 再移除 enter 类
-function animatePanel(p){
-  p.classList.remove('panel-enter');
-  void p.offsetWidth; // reflow
-  p.classList.add('panel-enter');
-}
-
-function bindColorInputs(keys, section, prefix, defSection){
-  keys.forEach(k=>{
-    const sw=$('#'+prefix+'-'+k), hex=$('[data-hex="'+k+'"]');
-    if(!sw || !hex) return;
-    sw.addEventListener('input',()=>{ hex.value=sw.value; hex.classList.remove('invalid'); onColorChange(section,k,sw.value); });
-    hex.addEventListener('input',()=>{
-      if(/^#[0-9a-fA-F]{6}$/.test(hex.value)){ sw.value=hex.value; hex.classList.remove('invalid'); onColorChange(section,k,hex.value); }
-      else { hex.classList.add('invalid'); }
-    });
-    // 重置按钮（附加增强）
-    const rst=$('[data-reset="'+prefix+'-'+k+'"]');
-    if(rst){
-      rst.addEventListener('click',()=>{
-        const dflt = STATE && STATE.defaults ? (STATE.defaults[defSection]||{}) : {};
-        const defVal = (dflt.dark||{})[k] || (dflt.light||{})[k] || '';
-        if(defVal){
-          sw.value = defVal; hex.value = defVal; hex.classList.remove('invalid');
-          onColorChange(section,k,defVal);
-          toast('已重置 ' + k);
-        }
-      });
-    }
-  });
-}
-
-function renderPanel(){
-  const p = $('#panel');
-  clearAllHighlights();
-  const t = STATE.activeTheme || {colors:{},ansi:{},syntax:{}};
-  if(currentPanel==='ui'){
-    p.innerHTML = `<h2>UI 配色</h2><div class="hint">调整 mcode 界面主色调，右侧实时预览。</div>
-      <div id="disc-card">${renderDiscipline(t.colors)}</div>
-      <div class="color-grid">${STATE.uiKeys.map(k=>colorItem(k, t.colors[k], USAGE, 'ui')).join('')}</div>`;
-    bindColorInputs(STATE.uiKeys, 'colors', 'ui', 'ui');
-  } else if(currentPanel==='syntax'){
-    p.innerHTML = `<h2>代码语法高亮</h2><div class="hint">代码块配色（One Dark / Catppuccin 风格）。</div>
-      <div class="color-grid">${STATE.syntaxKeys.map(k=>colorItem(k, t.syntax[k], SYN_USAGE, 'syn')).join('')}</div>`;
-    bindColorInputs(STATE.syntaxKeys, 'syntax', 'syn', 'syntax');
-  } else if(currentPanel==='ansi'){
-    p.innerHTML = `<h2>ANSI 8 色回退</h2><div class="hint">colorLevel=1 的低色深终端使用的 ANSI 命名色。</div>
-      <div class="color-grid">${STATE.ansiKeys.map(k=>colorItem(k, t.ansi[k], ANSI_USAGE, 'ansi')).join('')}</div>`;
-    bindColorInputs(STATE.ansiKeys, 'ansi', 'ansi', 'ansi');
-  } else if(currentPanel==='plan'){
-    p.innerHTML = `<h2>Plan 模式主题</h2><div class="hint">按 Shift+Tab 进入 Plan 模式时，自动切换到所选主题；退出恢复当前主题。</div>
-      <div class="toolbar">
-        <div class="c-drop" id="plan-drop" data-cdrop></div>
-        <button class="btn primary" id="plan-save">保存 Plan 主题</button>
-      </div>
-      <div class="row"><span class="badge">当前正常主题: ${esc(STATE.current||'-')}</span>
-      <span class="badge" id="plan-cur">Plan: ${esc(STATE.planTheme||'未设置')}</span></div>
-      <p class="hint">原理：在 cli.js 注入 plan 主题对象，Plan 模式激活时自动应用。</p>`;
-    const planDrop = createDrop($('#plan-drop'), {
-      options: [{value:'', label:'(不设置 Plan 主题)'}, ...STATE.themes.map(n=>({value:n,label:n}))],
-      value: STATE.planTheme || '', label: 'Plan 模式主题',
-      onChange: ()=>{},
-    });
-    $('#plan-save').addEventListener('click', async ()=>{
-      try{ const v=planDrop.value; await api('/api/plan',{name:v||null}); STATE.planTheme=v; $('#plan-cur').textContent='Plan: '+(v||'未设置'); toast('Plan 主题已'+(v?'设置':'清除')); }
-      catch(e){ toast(e.message,true); }
-    });
-  } else if(currentPanel==='logo'){
-    p.innerHTML = `<h2>Logo 颜色</h2><div class="hint">登录页（mcode login）的 Logo 底色。</div>
-      <div class="color-grid">${colorItem('logo', t.logo||t.colors.brand, {logo:'登录页 Logo 底色'}, 'ui')}</div>`;
-    const sw=$('#ui-logo'), hex=$('[data-hex="logo"]');
-    sw.addEventListener('input',()=>{ hex.value=sw.value; applyCSSVars({colors:{brand:sw.value,wordmarkHighlight:sw.value,wordmarkShadow:sw.value,signal:sw.value,orbit:sw.value,accent:sw.value,userMessageBg:'#1E3A5F',text:'#EDEDED',muted:'#ADADAD',dim:'#7A7A7A',border:'#2A3A4E',line:'#3D5A7A',success:'#28C567',warning:'#FFC340',error:'#FF5E6C'},syntax:t.syntax}); });
-    hex.addEventListener('input',()=>{ if(/^#[0-9a-fA-F]{6}$/.test(hex.value)){ sw.value=hex.value; sw.dispatchEvent(new Event('input'));} });
-  } else if(currentPanel==='font'){
-    p.innerHTML = `<h2>字体</h2>
-      <div class="hint">mcode 本身不控制字体（由终端决定），这里可调整<b>预览字体</b>并查看终端设置指引。</div>
-      <div class="toolbar">
-        <div class="c-drop" id="font-drop" data-cdrop></div>
-      </div>
-      <h3>终端字体设置指引</h3>
-      <div style="background:var(--bg-card);border:1px solid var(--border-strong);border-radius:8px;padding:14px;font-size:12px;line-height:1.8;color:var(--text-2)">
-        <b>GNOME Terminal:</b> 首选项 → 配置文件 → 自定义字体<br>
-        <b>Konsole:</b> 设置 → 编辑当前方案 → 外观 → 字体<br>
-        <b>Windows Terminal:</b> 设置 → 配置文件 → 外观 → 字体<br>
-        <b>VS Code 集成终端:</b> 设置 → terminal.integrated.fontFamily → 例如 <code style="color:var(--brand)">'JetBrains Mono', Consolas, monospace</code><br><br>
-        <span style="color:var(--text-3)">推荐等宽字体：JetBrains Mono / Fira Code / Cascadia Code（含连字支持）</span>
-      </div>`;
-    createDrop($('#font-drop'), {
-      options: STATE.fonts.map(f=>({value:f.stack, label:f.name})),
-      value: localStorage.getItem('mcode-theme-font') || '',
-      label: '预览字体',
-      onChange: v=>{
-        const opt = STATE.fonts.find(f=>f.stack===v);
-        if(!opt) return;
-        localStorage.setItem('mcode-theme-font', opt.stack);
-        localStorage.setItem('mcode-theme-font-name', opt.name);
-        renderPreview();
-      },
-    });
-  }
-  animatePanel(p);
-}
-
-function onColorChange(section, key, value){
-  dirty[section+'.'+key]=value;
-  const t=STATE.activeTheme||{colors:{},ansi:{},syntax:{}};
-  t[section][key]=value;
-  applyCSSVars(t);
-  renderPreview();
-  // 编辑任一颜色 → 高亮对应应用点
-  if(section === 'colors') highlightTargets(key);
-  // UI 面板实时重算纪律柱状图（仅 15 色亮度计算，<1ms）
-  const disc = $('#disc-card');
-  if(disc) disc.innerHTML = renderDiscipline(t.colors);
-}
-
-function renderNav(){
-  $('#nav').innerHTML = `<div class="group-label">自定义模块</div>` +
-    MODULES.map(m=>`<button class="${m.id===currentPanel?'active':''}" data-panel="${m.id}">
-      ${m.name}<span class="desc">${m.desc}</span></button>`).join('');
-  document.querySelectorAll('#nav button').forEach(b=>{
-    b.addEventListener('click',()=>{ currentPanel=b.dataset.panel; renderNav(); renderPanel(); });
-  });
-}
-
-function toast(msg, isErr){
-  const t=$('#toast'); t.textContent=msg; t.className='show'+(isErr?' err':''); setTimeout(()=>{ t.className='hide'+(isErr?' err':''); setTimeout(()=>t.className='',250); },2200);
-}
-
-// ============ 自定义下拉（原生 DOM，零依赖） ============
-function createDrop(container, opts){
-  const items = (opts.options||[]).slice();
-  let val = opts.value;
-  const onChange = opts.onChange;
-  let open = false, hoverIdx = -1;
-  container.classList.add('c-drop');
-  container.innerHTML =
-    `<button type="button" class="c-drop-trigger" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-label="${esc(opts.label||'')}">
-       <span class="c-drop-value"></span><span class="c-drop-caret">▾</span>
-     </button>
-     <ul class="c-drop-menu" role="listbox"></ul>`;
-  const trigger = container.querySelector('.c-drop-trigger');
-  const menu = container.querySelector('.c-drop-menu');
-  const valEl = container.querySelector('.c-drop-value');
-  function render(){
-    const cur = items.find(i=>i.value===val);
-    valEl.textContent = cur ? cur.label : '';
-    menu.innerHTML = items.map((it,i)=>{
-      const sel = it.value===val;
-      return `<li role="option" aria-selected="${sel?'true':'false'}" data-value="${esc(it.value)}" data-idx="${i}" class="${sel?'sel':''}">${esc(it.label)}${sel?'<span class="ck">✓</span>':''}</li>`;
-    }).join('');
-    if(!items.length) menu.innerHTML = `<li role="option" aria-disabled="true" style="color:var(--text-3);cursor:default">（无选项）</li>`;
-  }
-  function setOpen(v){
-    open = v;
-    container.classList.toggle('open', v);
-    trigger.setAttribute('aria-expanded', v?'true':'false');
-    if(v){ const cur = items.findIndex(i=>i.value===val); hoverIdx = cur>=0?cur:0; updateHover(); }
-  }
-  function updateHover(){
-    menu.querySelectorAll('li').forEach(li=>{ li.classList.toggle('hover', parseInt(li.dataset.idx,10)===hoverIdx); });
-    const el = menu.querySelector(`[data-idx="${hoverIdx}"]`);
-    if(el) el.scrollIntoView({block:'nearest'});
-  }
-  function select(v){
-    if(v===val || !items.some(i=>i.value===v)) return;
-    val = v; render();
-    if(onChange) onChange(v);
-  }
-  trigger.addEventListener('click', e=>{ e.stopPropagation(); setOpen(!open); });
-  trigger.addEventListener('keydown', e=>{
-    if(e.key==='ArrowDown'){ e.preventDefault(); if(!open) setOpen(true); else { hoverIdx=Math.min(items.length-1,hoverIdx+1); updateHover(); } }
-    else if(e.key==='ArrowUp'){ e.preventDefault(); if(!open) setOpen(true); else { hoverIdx=Math.max(0,hoverIdx-1); updateHover(); } }
-    else if(e.key==='Enter'||e.key===' '){ e.preventDefault(); if(open&&hoverIdx>=0&&items[hoverIdx]){ select(items[hoverIdx].value); setOpen(false); } else setOpen(true); }
-    else if(e.key==='Escape'){ setOpen(false); }
-  });
-  menu.addEventListener('click', e=>{
-    const li = e.target.closest('li'); if(!li) return;
-    select(li.dataset.value); setOpen(false);
-  });
-  menu.addEventListener('mouseover', e=>{
-    const li = e.target.closest('li'); if(!li || !li.dataset.idx) return;
-    hoverIdx = parseInt(li.dataset.idx,10); updateHover();
-  });
-  document.addEventListener('click', e=>{ if(open && !container.contains(e.target)) setOpen(false); });
-  document.addEventListener('keydown', e=>{ if(open && e.key==='Escape') setOpen(false); });
-  render();
-  return {
-    get value(){ return val; },
-    set value(v){ val = v; render(); },
-    setOptions(o){ items.length=0; items.push(...o); render(); },
-    open(){ setOpen(true); }, close(){ setOpen(false); },
-  };
-}
-
-// ============ 真实会话预览状态 ============
-let pvSource = 'sim';
-let realSessions = [];
-let realMessages = null;
-let realErr = null;
-let realTimer = null;
-let sessionDrop = null;
-
-// 极简代码高亮（零依赖，复用 .pv-code 现有高亮类）
-function highlightCode(code){
-  const e = esc(code);
-  let h = e.replace(/(\/\/[^\n]*|#[^\n]*)/g, '<span class="c">$1</span>');
-  h = h.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g, '<span class="s">$1</span>');
-  h = h.replace(/\b(def|class|return|import|from|if|else|elif|for|while|try|except|with|as|async|await|function|const|let|var|new|typeof|export|default|case|break|continue|switch|do|in|of|null|undefined|true|false|None|True|False|and|or|not|lambda|yield|pass|raise|self|this|static|void|int|str|float|bool|list|dict|set)\b/g, '<span class="k">$1</span>');
-  h = h.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="n">$1</span>');
-  return h;
-}
-// 消息文本 → HTML（``` 围栏 → .pv-code）
-function renderMsgText(text){
-  const parts = String(text).split(/```/g);
-  let html = '';
-  for(let i=0;i<parts.length;i++){
-    if(i%2===1){
-      let code = parts[i];
-      const nl = code.indexOf('\n');
-      if(nl>0) code = code.slice(nl+1);
-      html += `<div class="pv-code"><pre>${highlightCode(code.trim())}</pre></div>`;
-    } else if(parts[i].trim()){
-      html += `<div>${parts[i].replace(/\n{2,}/g,'</div><div>').replace(/\n/g,'<br>')}</div>`;
-    }
-  }
-  return html;
-}
-function renderRealBody(){
-  if(realErr) return `<div class="pv-real-err">真实会话加载失败：${esc(realErr)}（每 3s 自动重试）</div>`;
-  if(!realMessages) return `<div class="pv-real-err">未选择会话</div>`;
-  if(!realMessages.length) return `<div class="pv-real-err">该会话暂无可见文本消息</div>`;
-  return realMessages.map(m=>{
-    if(m.type==='thinking'){
-      return `<div class="pv-ai pv-thinking"><span class="pv-th-tag">thinking</span><br>${esc(m.text)}</div>`;
-    }
-    if(m.role==='user'){
-      return `<div class="pv-user"><div class="tag">You</div>${renderMsgText(m.text)}</div>`;
-    }
-    return `<div class="pv-ai">${renderMsgText(m.text)}</div>`;
-  }).join('');
-}
-// 选中态模拟块：第 2 项 selected，样式与真实 patch 同色规则对齐
-function renderSelBlock(){
-  const items = [
-    {label:'EduSRC 侦察', sel:false},
-    {label:'漏洞分析', sel:true},
-    {label:'报告生成', sel:false},
-  ];
-  return `<div class="pv-sel" aria-label="skill 选择（选中态模拟）">` +
-    items.map(it=>`<div class="pv-sel-item${it.sel?' selected':''}">${esc(it.label)}${it.sel?'<span class="pv-sel-check">✓</span>':''}</div>`).join('') +
-    `</div>`;
-}
-async function loadSessionList(silent){
-  const btn = $('#pv-src-refresh');
-  if(btn && !silent){ btn.disabled = true; btn.textContent = '…'; }
-  try{
-    const list = await api('/api/session/list');
-    realSessions = list;
-    if(sessionDrop){
-      const cur = sessionDrop.value;
-      sessionDrop.setOptions(list.map(s=>({value:s.id, label:s.title})));
-      if(list.length){
-        if(!cur || !list.some(s=>s.id===cur)){ sessionDrop.value = list[0].id; }
-        loadRealSession(sessionDrop.value, true);
-      } else {
-        realMessages = null; realErr = null;
-        renderPreview();
-      }
-    }
-  }catch(e){ /* 静默重试，不弹错 */ }
-  finally { if(btn && !silent){ btn.disabled = false; btn.textContent = '↻'; } }
-}
-async function loadRealSession(id, silent){
-  try{
-    const data = await api('/api/session/'+encodeURIComponent(id)+'/messages');
-    realMessages = data.messages || [];
-    realErr = null;
-    renderPreview();
-  }catch(e){
-    if(!silent){ realErr = e.message; renderPreview(); }
+  moveThumb();
+  if (location.hash.slice(1) !== tab) {
+    history.replaceState(null, "", "#" + tab);
   }
 }
-function startRealPolling(){
-  stopRealPolling();
-  realTimer = setInterval(()=>{ if(pvSource!=='real') return; loadSessionList(true); }, 3000);
-}
-function stopRealPolling(){
-  if(realTimer){ clearInterval(realTimer); realTimer = null; }
-}
-function setPvSource(mode){
-  pvSource = mode;
-  $('#pv-src-sim').classList.toggle('on', mode==='sim');
-  $('#pv-src-real').classList.toggle('on', mode==='real');
-  $('#pv-src-controls').style.display = mode==='real' ? 'flex' : 'none';
-  if(mode==='real'){
-    if(!sessionDrop){
-      sessionDrop = createDrop($('#session-drop'), {
-        options: [], value: '', label: '会话', onChange: v=>loadRealSession(v, false),
-      });
-    }
-    loadSessionList(false);
-    startRealPolling();
-  } else {
-    stopRealPolling();
-  }
-  renderPreview();
+
+function moveThumb() {
+  const on = $('#tabs button.on');
+  const thumb = $("#tabThumb");
+  if (!on) return;
+  thumb.style.width = on.offsetWidth + "px";
+  thumb.style.transform = "translateX(" + (on.offsetLeft - 2) + "px)";
 }
 
-// ============ 当前主题状态卡 ============
-const SWATCH_ORDER = ['brand','wordmarkHighlight','wordmarkShadow','signal','orbit','accent','userMessageBg','text','muted','dim','border','line','success','warning','error'];
-function swatchRow(colors){
-  if(!colors) return '';
-  return SWATCH_ORDER.map(k=>colors[k] ? `<span class="sc-swatch" title="${k}" style="background:${colors[k]}"></span>` : '').join('');
-}
-async function renderStatusCard(){
-  const card = $('#status-card');
-  try{
-    const st = await api('/api/status');
-    const applied = !!st.applied;
-    card.classList.add('show');
-    // 当前主题栏
-    const badge = $('#sc-cur-badge'), nameEl = $('#sc-cur-name'), metaEl = $('#sc-cur-meta'),
-          swEl = $('#sc-cur-swatches'), guideEl = $('#sc-cur-guide');
-    if(!applied){
-      badge.textContent = '未设置'; badge.className = 'sc-badge none';
-      nameEl.textContent = '官方默认主题';
-      metaEl.textContent = '未配置 mcode-theme';
-      swEl.innerHTML = '';
-      guideEl.innerHTML = `<button class="btn ghost" id="sc-guide-btn">选择主题并应用</button>
-        <span style="color:var(--text-3)">运行 mcode-theme apply &lt;name&gt; 开始定制</span>`;
-      const gb = $('#sc-guide-btn');
-      if(gb) gb.addEventListener('click', ()=>{
-        if(themeDrop){ themeDrop.open(); }
-        toast('选择主题后点右上角「应用到 mcode」');
-      });
-    } else {
-      badge.textContent = st.state === 'ok' ? '生效' : '需重新 apply';
-      badge.className = 'sc-badge ' + st.state;
-      nameEl.textContent = st.name;
-      let meta = '';
-      if(st.appliedAtMs){
-        const d = new Date(st.appliedAtMs);
-        meta = '应用时间: ' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
-      } else {
-        meta = '应用时间: 未知';
-      }
-      metaEl.textContent = meta;
-      const curTheme = STATE.currentTheme && STATE.currentTheme.colors ? STATE.currentTheme : (STATE.activeTheme ? STATE.activeTheme : null);
-      swEl.innerHTML = swatchRow(curTheme ? curTheme.colors : null);
-      guideEl.innerHTML = st.state === 'stale'
-        ? `<span style="color:var(--warning)">运行 mcode-theme apply ${esc(st.name)} 重新应用</span>`
-        : '';
-    }
-    // Plan 模式栏
-    const pBadge = $('#sc-plan-badge'), pName = $('#sc-plan-name'), pSw = $('#sc-plan-swatches');
-    if(st.planTheme){
-      pBadge.textContent = '已设置'; pBadge.className = 'sc-badge ok';
-      pName.textContent = st.planTheme;
-      pSw.innerHTML = '<span class="sc-meta" style="color:var(--text-3)">加载中…</span>';
-      try{
-        const pt = await api('/api/theme/' + encodeURIComponent(st.planTheme));
-        pSw.innerHTML = swatchRow(pt.colors);
-      }catch(e){ pSw.innerHTML = ''; }
-    } else {
-      pBadge.textContent = '未设置'; pBadge.className = 'sc-badge none';
-      pName.textContent = '与当前主题一致';
-      pSw.innerHTML = '';
-    }
-  }catch(e){ /* 状态卡失败静默（不影响主功能） */ }
-}
-
-async function init(){
-  try{
-    STATE = await api('/api/state');
-    $('#badge-version').textContent = 'mcode: ' + (STATE.version||'?');
-    $('#badge-plan').textContent = 'Plan: ' + (STATE.planTheme||'-');
-    if(STATE.current) await loadTheme(STATE.current);
-    else { STATE.activeTheme = {name:'(未应用)', appearance:'dark', colors:{...STATE.defaults.ui.dark}, ansi:{...STATE.defaults.ansi.dark}, syntax:{...STATE.defaults.syntax.dark}}; applyCSSVars(STATE.activeTheme); renderPreview(); }
-    renderNav(); renderPanel();
-
-    // Header 主题快速切换（仅预览，不写盘）——自定义下拉
-    themeDrop = createDrop($('#theme-drop'), {
-      options: STATE.themes.map(n=>({value:n,label:n})),
-      value: STATE.current || '',
-      label: '快速切换主题',
-      onChange: async v=>{
-        if(!v) return;
-        try{ await loadTheme(v); }
-        catch(e){ toast(e.message, true); }
-      },
-    });
-
-    // 预览外观切换（仅预览区用 defaults light/dark 渲染）
-    $('#pv-appearance-btn').addEventListener('click', ()=>{
-      pvAppearance = pvAppearance==='live' ? 'dark' : (pvAppearance==='dark' ? 'light' : 'live');
-      renderPreview();
-    });
-
-    // 预览源：模拟（默认）/ 真实
-    $('#pv-src-sim').addEventListener('click', ()=>setPvSource('sim'));
-    $('#pv-src-real').addEventListener('click', ()=>setPvSource('real'));
-    $('#pv-src-refresh').addEventListener('click', ()=>{
-      if(pvSource==='real' && sessionDrop) loadSessionList(false);
-    });
-
-    // 当前主题状态卡
-    renderStatusCard();
-  }catch(e){ console.error('[mcode-theme] init failed:', e); toast('初始化失败: '+e.message, true); }
-
-  // 导出主题包
-  $('#btn-export').addEventListener('click', ()=>{
-    try{
-      const t = currentThemeObj();
-      const fname = (t.name||'theme').replace(/[^a-z0-9-_]/gi,'_');
-      const d = new Date();
-      const ymd = ''+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
-      const pack = {
-        format:'mcode-theme-pack', version:1, exportedAt:new Date().toISOString(),
-        name:t.name||'live-edit', appearance:t.appearance,
-        colors:t.colors, ansi:t.ansi, syntax:t.syntax, logo:t.logo,
-      };
-      const blob = new Blob([JSON.stringify(pack,null,2)], {type:'application/json'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = fname+'-'+ymd+'.json';
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
-      toast('已导出主题包: '+a.download);
-    }catch(e){ toast('导出失败: '+e.message, true); }
-  });
-
-  // 导入主题包（校验 → 预览，不写盘）
-  $('#btn-import').addEventListener('click', ()=>$('#import-file').click());
-  $('#import-file').addEventListener('change', e=>{
-    const file = e.target.files && e.target.files[0];
-    e.target.value = '';
-    if(!file) return;
-    const reader = new FileReader();
-    reader.onload = ()=>{
-      let data;
-      try{ data = JSON.parse(reader.result); }
-      catch(err){ toast('主题包无效：JSON 解析失败', true); return; }
-      if(!data || typeof data !== 'object' || data.format !== 'mcode-theme-pack'){
-        toast('主题包无效：format 字段不匹配', true); return;
-      }
-      const colors = data.colors || {};
-      const bad = [];
-      for(const k of STATE.uiKeys){
-        if(!(typeof colors[k]==='string' && /^#[0-9a-fA-F]{6}$/.test(colors[k]))) bad.push(k);
-      }
-      if(bad.length){
-        toast('主题包无效：colors 缺少有效 #RRGGBB 键: '+bad.join(', '), true); return;
-      }
-      // 过滤不合法 ansi/syntax 键（容忍缺失，不整体拒绝）
-      const ansiRE = /^(black|red|green|yellow|blue|magenta|cyan|white|gray|blackBright|redBright|greenBright|yellowBright|blueBright|magentaBright|cyanBright|whiteBright)$/;
-      const ansi = {}, syntax = {};
-      for(const [k,v] of Object.entries(data.ansi||{})){ if(STATE.ansiKeys.includes(k) && typeof v==='string' && ansiRE.test(v)) ansi[k]=v; }
-      for(const [k,v] of Object.entries(data.syntax||{})){ if(STATE.syntaxKeys.includes(k) && typeof v==='string' && /^#[0-9a-fA-F]{6}$/.test(v)) syntax[k]=v; }
-      const theme = {
-        name: typeof data.name==='string' && data.name ? data.name : 'imported',
-        appearance: data.appearance==='light' ? 'light' : 'dark',
-        colors: {...colors},
-        ansi, syntax,
-        logo: (typeof data.logo==='string' && /^#[0-9a-fA-F]{6}$/.test(data.logo)) ? data.logo : colors.brand,
-      };
-      STATE.activeTheme = theme;
-      applyCSSVars(theme);
-      dirty = {};
-      renderPreview(); renderPanel();
-      $('#badge-theme').textContent = '主题: ' + theme.name + (theme.appearance==='light'?' (亮)':'') + '（导入预览）';
-      if(themeDrop) themeDrop.value = theme.name;
-      toast('已导入主题包预览: '+theme.name+'（未写盘，点“应用到 mcode”生效）');
+/* ============================================================
+   动作
+   ============================================================ */
+async function doApply() {
+  if (!S.theme) { toast("请先选择一个主题", "err"); return; }
+  const btn = $("#btnApply");
+  btn.disabled = true;
+  try {
+    const payload = {
+      name: S.theme.name || S.baseName,
+      appearance: S.theme.appearance || "dark",
+      colors: S.theme.colors || {},
+      ansi: S.theme.ansi || {},
+      syntax: S.theme.syntax || {},
+      logo: S.theme.logo,
     };
-    reader.onerror = ()=>toast('读取文件失败', true);
-    reader.readAsText(file);
-  });
+    const r = await api("/api/apply", { method: "POST", body: JSON.stringify({ theme: payload }) });
+    toast("已应用「" + (r.name || payload.name) + "」，mcode 中即时生效");
+    await refreshStatus();
+    await loadState();
+  } catch (e) {
+    toast("应用失败：" + e.message, "err");
+  } finally {
+    btn.disabled = false;
+  }
+}
 
-  $('#btn-apply').addEventListener('click', async ()=>{
-    try{
-      const theme = currentThemeObj();
-      // logo 面板的 logo 字段
-      theme.logo = theme.logo || theme.colors.brand;
-      await api('/api/apply',{theme});
-      const st = await api('/api/state');
-      STATE.current = st.current; $('#badge-theme').textContent='主题: '+st.current;
-      await loadTheme(st.current);
-      toast('已应用到 mcode · 重启 mcode 生效');
-    }catch(e){ toast(e.message,true); }
+async function doRestore() {
+  try {
+    await api("/api/restore", { method: "POST" });
+    toast("已恢复到 mcode 内置主题");
+    await refreshStatus();
+    await loadState();
+  } catch (e) {
+    toast("恢复失败：" + e.message, "err");
+  }
+}
+
+async function doSave() {
+  if (!S.theme) return;
+  const name = prompt("保存为新主题名（留空则覆盖当前主题）", S.baseName || "");
+  if (name === null) return;
+  const target = (name || S.baseName || "my-theme").trim();
+  if (!/^[a-z0-9][a-z0-9._-]{0,63}$/i.test(target)) {
+    toast("主题名只能包含字母、数字、. _ -，且以字母/数字开头", "err");
+    return;
+  }
+  try {
+    const payload = {
+      name: target,
+      appearance: S.theme.appearance || "dark",
+      colors: S.theme.colors || {},
+      ansi: S.theme.ansi || {},
+      syntax: S.theme.syntax || {},
+      logo: S.theme.logo,
+      label: S.theme.label,
+      description: S.theme.description,
+    };
+    await api("/api/save", { method: "POST", body: JSON.stringify({ name: target, theme: payload }) });
+    toast("已保存「" + target + "」");
+    S.baseName = target;
+    await loadState();
+    await selectTheme(target);
+  } catch (e) {
+    toast("保存失败：" + e.message, "err");
+  }
+}
+
+async function doDelete() {
+  if (!S.baseName) return;
+  if (!confirm("确定删除主题「" + S.baseName + "」？")) return;
+  try {
+    await api("/api/delete", { method: "POST", body: JSON.stringify({ name: S.baseName }) });
+    toast("已删除");
+    S.theme = null; S.baseName = null;
+    await loadState();
+    await refreshStatus();
+  } catch (e) {
+    toast("删除失败：" + e.message, "err");
+  }
+}
+
+function doExport() {
+  if (!S.theme) return;
+  const blob = new Blob([JSON.stringify(S.theme, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (S.baseName || "theme") + ".json";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast("已导出主题包");
+}
+
+function doImport() {
+  const inp = document.createElement("input");
+  inp.type = "file";
+  inp.accept = "application/json,.json";
+  inp.addEventListener("change", async () => {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    try {
+      const data = JSON.parse(await f.text());
+      S.theme = data;
+      S.baseName = data.name;
+      renderAll();
+      updatePreview();
+      updateContrast();
+      toast("已载入「" + (data.label || data.name) + "」，点应用写入");
+    } catch (e) {
+      toast("导入失败：" + e.message, "err");
+    }
   });
-  $('#btn-restore').addEventListener('click', async ()=>{
-    if(!confirm('恢复官方主题？将清除所有自定义（含 Plan 主题）。')) return;
-    try{ await api('/api/restore',{}); location.reload(); }
-    catch(e){ toast(e.message,true); }
-  });
-  $('#btn-save').addEventListener('click', async ()=>{
-    const name = prompt('保存为新主题名称（英文/数字/连字符）:', 'my-theme');
-    if(!name || !/^[a-z0-9][a-z0-9-]*$/.test(name)){ toast('无效名称（需小写字母/数字/连字符）', true); return; }
-    try{
-      const theme = currentThemeObj(); theme.name = name;
-      await api('/api/save',{name, theme});
-      STATE.themes.push(name); STATE.themes.sort();
-      toast('已保存主题: '+name);
-      renderNav();
-      if(themeDrop){
-        themeDrop.setOptions(STATE.themes.map(n=>({value:n,label:n})));
-        themeDrop.value = name;
-      }
-    }catch(e){ toast(e.message,true); }
-  });
-  document.addEventListener('keydown', e=>{
-    if((e.ctrlKey||e.metaKey) && e.key==='s'){ e.preventDefault(); $('#btn-apply').click(); }
+  inp.click();
+}
+
+/* ============================================================
+   会话预览
+   ============================================================ */
+async function loadSessions() {
+  const box = $("#sessionBox");
+  try {
+    const list = await api("/api/session/list");
+    if (!list || !list.length) { box.innerHTML = '<div class="empty">暂无会话记录</div>'; return; }
+    box.innerHTML = "";
+    for (const s of list.slice(0, 8)) {
+      const el = document.createElement("div");
+      el.className = "contrast-item";
+      el.style.marginBottom = "6px";
+      const nm = document.createElement("span");
+      nm.className = "nm";
+      nm.textContent = s.title || "(untitled)";
+      const cnt = document.createElement("span");
+      cnt.className = "ratio";
+      cnt.textContent = s.messageCount + " 条";
+      const when = document.createElement("span");
+      when.className = "tagp aa";
+      when.textContent = new Date(s.updatedAtMs || Date.now()).toLocaleDateString();
+      el.appendChild(nm); el.appendChild(cnt); el.appendChild(when);
+      box.appendChild(el);
+    }
+  } catch (e) {
+    box.innerHTML = '<div class="empty">读取会话失败</div>';
+  }
+}
+
+/* ============================================================
+   状态
+   ============================================================ */
+async function refreshStatus() {
+  try {
+    const st = await api("/api/status");
+    S.status = st;
+    const pill = $("#statusPill");
+    const txt = $("#statusText");
+    pill.classList.remove("on", "warn");
+    if (!st.applied) {
+      pill.classList.add("warn");
+      txt.innerHTML = "未配置 · <strong>内置主题</strong>";
+    } else {
+      pill.classList.add("on");
+      const stTxt = st.state === "ok" ? "生效中" : st.state === "stale" ? "需重新应用" : st.state;
+      txt.innerHTML = "<strong>" + escapeHtml(st.name) + "</strong> · " + stTxt;
+    }
+  } catch (e) { /* ignore */ }
+}
+
+async function loadState() {
+  const st = await api("/api/state");
+  S.themes = st.themes || [];
+  S.variants = st.variants || {};
+  S.defaults = st.defaults || { ui: {}, ansi: {}, syntax: {} };
+  S.uiKeys = st.uiKeys || [];
+  S.syntaxKeys = st.syntaxKeys || [];
+  S.ansiKeys = st.ansiKeys || [];
+  S.fonts = st.fonts || [];
+  S.version = st.version || "";
+  $("#mcodeVer").textContent = "MiniMax Code" + (st.version ? " " + st.version : "");
+  S.current = st.current || null;
+  renderThemeList();
+  if (!S.theme && S.themes.length) {
+    await selectTheme(S.current && S.themes.includes(S.current) ? S.current : S.themes[0]);
+  } else {
+    renderAll();
+  }
+}
+
+/* ============================================================
+   初始化
+   ============================================================ */
+function initThemeMode() {
+  const saved = localStorage.getItem("mcode-theme-uimode") || "auto";
+  document.documentElement.dataset.theme = saved;
+  $("#btnThemeMode").addEventListener("click", () => {
+    const order = ["auto", "light", "dark"];
+    const cur = document.documentElement.dataset.theme || "auto";
+    const next = order[(order.indexOf(cur) + 1) % order.length];
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem("mcode-theme-uimode", next);
   });
 }
-init();
+
+function init() {
+  initThemeMode();
+
+  $$("#tabs button").forEach(b => b.addEventListener("click", () => selectTab(b.dataset.tab)));
+  $$("#variantSeg button").forEach(b => b.addEventListener("click", () => {
+    if (!S.baseName) return;
+    selectTheme(S.baseName, b.dataset.var);
+  }));
+  $("#search").addEventListener("input", renderThemeList);
+  $("#btnApply").addEventListener("click", doApply);
+  $("#btnRestore").addEventListener("click", doRestore);
+  $("#btnSessions").addEventListener("click", loadSessions);
+
+  // 编辑区工具条
+  const tools = document.createElement("div");
+  tools.className = "spacer";
+  tools.innerHTML = '<button class="btn ghost" id="btnSave">保存</button>' +
+    '<button class="btn ghost" id="btnExport">导出</button>' +
+    '<button class="btn ghost" id="btnImport">导入</button>' +
+    '<button class="btn ghost danger" id="btnDelete">删除</button>';
+  const head = $(".card-head");
+  head.appendChild(tools);
+  tools.querySelector("#btnSave").addEventListener("click", doSave);
+  tools.querySelector("#btnExport").addEventListener("click", doExport);
+  tools.querySelector("#btnImport").addEventListener("click", doImport);
+  tools.querySelector("#btnDelete").addEventListener("click", doDelete);
+
+  document.addEventListener("keydown", e => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      $("#search").focus();
+      $("#search").select();
+    }
+    if (e.key === "Escape" && document.activeElement === $("#search")) {
+      $("#search").value = "";
+      renderThemeList();
+      $("#search").blur();
+    }
+  });
+  window.addEventListener("resize", moveThumb);
+  window.addEventListener("hashchange", () => {
+    const t = location.hash.slice(1);
+    if (["preview", "ui", "syntax", "ansi", "contrast"].includes(t)) selectTab(t);
+  });
+  const initialTab = location.hash.slice(1);
+  if (["preview", "ui", "syntax", "ansi", "contrast"].includes(initialTab)) selectTab(initialTab);
+
+  (async () => {
+    try {
+      await refreshStatus();
+      await loadState();
+      loadSessions();
+    } catch (e) {
+      toast("初始化失败：" + e.message, "err");
+    }
+    requestAnimationFrame(moveThumb);
+  })();
+}
+
+document.addEventListener("DOMContentLoaded", init);
 </script>
 </body>
 </html>

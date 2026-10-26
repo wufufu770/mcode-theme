@@ -1,6 +1,8 @@
 {
   "name": "nord",
   "appearance": "dark",
+  "label": "Nord",
+  "description": "Arctic blue-gray — famously restrained and calm",
   "colors": {
     "brand": "#88C0D0",
     "wordmarkHighlight": "#A5CFDC",

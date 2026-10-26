@@ -1,6 +1,8 @@
 {
   "name": "tokyo-night",
   "appearance": "dark",
+  "label": "Tokyo Night",
+  "description": "Neon Tokyo at night — indigo base with vivid accents",
   "colors": {
     "brand": "#88ACF8",
     "wordmarkHighlight": "#AEC7FA",

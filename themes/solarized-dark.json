@@ -1,6 +1,8 @@
 {
   "name": "solarized-dark",
   "appearance": "dark",
+  "label": "Solarized Dark",
+  "description": "Solarized's dark variant — precise, low-strain contrast",
   "colors": {
     "brand": "#2380C1",
     "wordmarkHighlight": "#44DDD0",

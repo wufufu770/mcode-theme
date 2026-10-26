@@ -1,6 +1,8 @@
 {
   "name": "synthwave",
   "appearance": "dark",
+  "label": "Synthwave",
+  "description": "Hot magenta and cyan with a purple horizon glow",
   "colors": {
     "brand": "#FF6B6B",
     "wordmarkHighlight": "#FF9494",

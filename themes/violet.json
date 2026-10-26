@@ -1,6 +1,8 @@
 {
   "name": "violet",
   "appearance": "dark",
+  "label": "Violet",
+  "description": "Rich violet and plum on near-black",
   "colors": {
     "brand": "#8B5CF6",
     "wordmarkHighlight": "#A783F8",

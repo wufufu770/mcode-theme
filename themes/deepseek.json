@@ -1,6 +1,8 @@
 {
   "name": "deepseek",
   "appearance": "dark",
+  "label": "DeepSeek",
+  "description": "Cool indigo and slate — calm, low-glare editor palette",
   "colors": {
     "brand": "#4D6BFE",
     "wordmarkHighlight": "#768DFE",
