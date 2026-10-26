@@ -2,9 +2,13 @@
 
 MiniMax Code CLI 主题管理插件（Agent Plugins / agent-plugins.org 标准）。
 
-让用户自定义 MiniMax Code CLI（mcode）的界面主题：22 个内置主题（经典社区配色）、
-五段渐变 Logo（上浅下深）、一键应用/回落、状态查看、Web 可视化配置器、
-主题包导出/导入、12 条纪律自动校验、mcode 升级检测。
+让用户自定义 MiniMax Code CLI（mcode）的界面主题：22 个内置主题（经典社区配色，
+各带明暗双版本）、五段渐变 Logo（上浅下深）、一键应用/回落、状态查看、
+Web 可视化配置器、主题包导出/导入、12 条纪律自动校验、mcode 升级检测。
+
+**在 mcode 里怎么用**：
+- `/theme` —— 官方内置面板（mcode 0.5.2+），切换 `~/.minimax/tui/themes/` 下的主题
+- `/mcode-theme` —— 本插件提供的 Skill，做组合操作（列主题 / 开 Web / 导出）
 
 **v0.3.0 起基于 mcode 0.7.0 的原生主题机制**（写 `~/.minimax/tui/themes/*.json`
 + `~/.minimax/tui/tui-settings.json`），不再改写 `cli.js`，切换主题无需重启。

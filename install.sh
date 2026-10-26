@@ -47,18 +47,18 @@ done
 
 mkdir -p "${BIN_DIR}"
 for f in ${FILES}; do
-  if [ -e "${BIN_DIR}/${f}" ]; then
+  if [ -e "${BIN_DIR}/${f}" ] && ! cmp -s "${BIN_DIR}/${f}" "${SRC_DIR}/${f}"; then
     cp -f "${BIN_DIR}/${f}" "${BIN_DIR}/${f}.old" 2>/dev/null || true
   fi
   cp -f "${SRC_DIR}/${f}" "${BIN_DIR}/${f}"
   chmod +x "${BIN_DIR}/${f}" 2>/dev/null || true
 done
 mkdir -p "${BIN_DIR}/web"
-if [ -e "${BIN_DIR}/web/index.html" ]; then
+if [ -e "${BIN_DIR}/web/index.html" ] && ! cmp -s "${BIN_DIR}/web/index.html" "${SRC_DIR}/web/index.html"; then
   cp -f "${BIN_DIR}/web/index.html" "${BIN_DIR}/web/index.html.old" 2>/dev/null || true
 fi
 cp -f "${SRC_DIR}/web/index.html" "${BIN_DIR}/web/index.html"
-echo "==> 已复制工具与依赖到 ${BIN_DIR}（旧文件保留为 .old）"
+echo "==> 已复制工具与依赖到 ${BIN_DIR}（内容有变时保留 .old）"
 
 # ---- 3. 主题库（mcode-theme 自有格式，可编辑源）----
 LIB_DIR="$(dirname "${BIN_DIR}")/share/mcode-themes"
@@ -71,7 +71,24 @@ for f in "${SRC_DIR}"/themes/*.json; do
 done
 echo "==> 已安装主题库 ${LIB_DIR}（${THEME_COUNT} 个主题）"
 
-# ---- 3. PATH 检查提示 ----
+# ---- 4. 注册 mcode Skill（/mcode-theme 斜杠命令）----
+# mcode 的 User skill 作用域是 <dataDir>/skills/，即 ~/.minimax/skills/
+# 放进去后，mcode 的 / 补全里会出现 /mcode-theme（标 [Skill]）
+# 注：mcode plugin marketplace 在 0.7.0 被禁用，故走本地 skill 目录
+SKILL_SRC="${SRC_DIR}/plugins/wufufu770/mcode-theme/skills/mcode-theme/SKILL.md"
+SKILL_DIR="${HOME}/.minimax/skills/mcode-theme"
+if [ -f "${SKILL_SRC}" ]; then
+  mkdir -p "${SKILL_DIR}"
+  if [ -e "${SKILL_DIR}/SKILL.md" ] && ! cmp -s "${SKILL_DIR}/SKILL.md" "${SKILL_SRC}"; then
+    cp -f "${SKILL_DIR}/SKILL.md" "${SKILL_DIR}/SKILL.md.old" 2>/dev/null || true
+  fi
+  cp -f "${SKILL_SRC}" "${SKILL_DIR}/SKILL.md"
+  echo "==> 已注册 mcode Skill：/mcode-theme（${SKILL_DIR}/SKILL.md）"
+else
+  echo "==> 跳过 Skill 注册（未找到 ${SKILL_SRC}）"
+fi
+
+# ---- 5. PATH 检查提示 ----
 IN_PATH=0
 case ":${PATH}:" in
   *":${BIN_DIR}:"*) IN_PATH=1 ;;

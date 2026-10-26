@@ -1,13 +1,14 @@
 # mcode-theme
 
 MiniMax Code CLI（mcode）主题管理工具：安装、切换、恢复主题，Web 可视化配置，
-22 个内置主题，五段渐变 Logo。
+22 个内置主题 × 明暗双版本，五段渐变 Logo。
 
 ## 功能
 
-- **主题库**：22 个内置主题（经典社区配色）
+- **主题库**：22 个内置主题（经典社区配色），每个都有配套的 light 变体
 - **一键应用/恢复**：`apply` 切换主题，`restore` 回落到 mcode 内置默认
-- **Web 可视化配置器**：实时预览、真实会话预览、主题包导出/导入、状态卡片
+- **CLI 内热切换**：官方 `/theme` 直接可用（mcode 0.5.2+）；另提供 `/mcode-theme` Skill 入口
+- **Web 可视化配置器**：Apple 风格界面，实时预览、主题包导出/导入、WCAG 对比度检查
 - **主题包**：JSON 格式分享/导入（格式校验 + 颜色键校验）
 - **渐变 Logo**：五段垂直渐变（上浅下深），现代终端自动 truecolor，256 色降级
 - **校验**：主题安装前自动校验（颜色亮度/色相/饱和度/对比度/渐变区分度）
@@ -15,6 +16,9 @@ MiniMax Code CLI（mcode）主题管理工具：安装、切换、恢复主题�
 
 > **v0.3.0 起基于 mcode 0.7.0 的原生主题机制**（不再改写 `cli.js`），
 > 详见「mcode 0.7.0 原生主题机制」。旧版 mcode（< 0.7.0）仍走打补丁的老路径。
+>
+> **官方自带 `/theme`（0.5.2 引入）** —— 本工具不是给 mcode 加主题功能，
+> 而是补上官方没有的：22 个社区配色、明暗双版本、可视化调色盘、对比度校验。
 
 ## CLI 内热切换（/theme）
 
@@ -27,17 +31,53 @@ mcode 0.7.0 自带 `/theme` 命令，会扫描 `~/.minimax/tui/themes/` 并列�
                    （←/→ 可切 auto / light / dark 外观，Enter 保存）
 ```
 
-> **为什么没有做成 `/mcode-theme` 自定义命令？**
-> mcode 的两种插件格式都不支持注册命令：`AGENT_PLUGINS_V1` 的 `plugin.json`
-> 白名单只有 `skills` / `mcpServers` / `hooks` / `apps` / `extensions`，
-> `MINIMAX` 格式的 `.minimax-plugin/plugin.json` 白名单里也没有 `commands`。
-> 代码里唯一的命令注入点是 `commandContributions`（由嵌入宿主传入），
-> ACP 与 app-server 协议均未暴露该通道。所以 `/theme` + 自定义主题目录
-> 就是官方支持的扩展路径。
+> **官方已经做了 `/theme`** —— 0.5.2（2026-09-22）引入主题面板，0.5.3 加上 ←/→ 切外观。
+> 详见 mcode 包内 `CHANGELOG.md`。它只写在 CHANGELOG 里，README 全文 0 处提及，
+> 所以很容易漏掉。
+>
+> 官方原生机制能做的事：切换 4 个内置主题、读取 `~/.minimax/tui/themes/*.json` 里的
+> 自定义主题、热重载、锁定明暗。**它没有的事**：22 个社区配色的策展、明暗双版本派生、
+> 可视化调色盘、对比度校验 —— 这些是本工具补上的。
 
 主题带 `label` / `description` 时，选择器会显示友好名称与 About 说明；
 同一主题的明暗两个变体（同名 + 不同 `appearance`）会被 mcode 合并成一条，
 用 ←/→ 即可切换外观。
+
+## 两条命令路径
+
+| 路径 | 触发 | 执行方式 | 适合 |
+|---|---|---|---|
+| `/theme` | mcode 内置 | 本地直连动作，**零 LLM 开销** | 高频切换、官方面板 UI |
+| `/mcode-theme` | 本仓库的 Skill | 注入 SKILL.md → Agent 执行 | 组合操作（列主题 / 开 Web / 导出 / 改单键） |
+
+`/mcode-theme` 由一个 mcode **User Skill** 提供，装在 `~/.minimax/skills/mcode-theme/SKILL.md`
+（官方 skill-creator 定义的作用域：`{{DATA_DIR}}/skills/`）。装好后 mcode 的 `/` 补全里
+会出现 `mcode-theme`（带 `[Skill]` 标记），composer 也会显示 `Skill · instructions · Enter invoke`。
+
+```bash
+# 手动安装 Skill
+mkdir -p ~/.minimax/skills/mcode-theme
+cp plugins/wufufu770/mcode-theme/skills/mcode-theme/SKILL.md \
+   ~/.minimax/skills/mcode-theme/SKILL.md
+
+# 校验（mcode 自带 linter）
+node "$(dirname "$(readlink -f "$(command -v mcode)")")/../assets/skills/skill-creator/scripts/lint-skill.js" \
+     ~/.minimax/skills/mcode-theme
+```
+
+`install.sh` 会自动完成这一步。
+
+> **为什么走本地 skill 目录而不是 plugin marketplace？**
+> `mcode plugin marketplace` 在 0.7.0 这个 build 里被禁用了
+> （"Plugin marketplaces are not available in this build"），`mcode plugin add` 装不了。
+> 本地 User skill 目录不受影响，同一份 SKILL.md 未来也能被 marketplace 直接装上。
+>
+> **为什么没有让插件注册「本地直连动作」的命令？**
+> 两种插件格式都不支持：`AGENT_PLUGINS_V1` 的 `plugin.json` 白名单只有
+> `skills` / `mcpServers` / `hooks` / `apps` / `extensions`，
+> `MINIMAX` 格式的 `.minimax-plugin/plugin.json` 白名单里也没有 `commands`。
+> 代码里唯一的命令注入点 `commandContributions` 由嵌入宿主传入，
+> ACP 与 app-server 协议均未暴露该通道。Skill 是官方支持的唯一扩展点。
 
 ## 安装
 
@@ -200,7 +240,14 @@ MIT — 见 LICENSE。
 - 支持 mcode 0.7.0 新增的 5 个 UI 键（markdown / diff），旧主题自动派生
 - 主题库与原生目录分离：`~/.local/share/mcode-themes/`（可编辑源）↔
   `~/.minimax/tui/themes/`（mcode 读取）
-- Web 配置器改用原生写入，支持实时预览与热重载
+- **新增 `/mcode-theme` 斜杠命令**：以 mcode User Skill 形式注册到
+  `~/.minimax/skills/mcode-theme/`，`install.sh` 自动完成；与官方 `/theme` 并存
+- 22 个主题补 `label` / `description`（官方 `/theme` 选择器会显示），并派生
+  21 个 light 变体（`gen-light-variants.py`）
+- Web 配置器全新重做：Apple 官方风格、完整深色模式、WCAG 对比度面板、
+  明暗变体切换、hash 深链
+- 修 bug：`apply` 查找顺序（主题库优先于原生目录）、变体文件名冲突、
+  web.py 端口探测误报 TIME_WAIT
 
 ### v0.1.6 (2026-08-19)
 - 适配 mcode v0.1.6
