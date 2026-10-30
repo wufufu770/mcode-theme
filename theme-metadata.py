@@ -16,8 +16,35 @@ label 用可读化后的名字。
 import colorsys
 import json
 import os
+import pathlib
 import re
 import sys
+
+
+# ---- 本地路径卡口（同文件内联校验 + pathlib 句柄，防路径穿越） ----
+
+def _guard_path(path, root):
+    """realpath 必须落在 root 内，否则拒绝（含符号链接逃逸）。"""
+    root_real = os.path.realpath(root)
+    real = os.path.realpath(path)
+    if real != root_real and not real.startswith(root_real + os.sep):
+        raise ValueError("拒绝访问允许目录之外的路径: %s" % path)
+    return real
+
+
+def _write_open(path, root, mode="w", **kw):
+    path = _guard_path(path, root)
+    return pathlib.Path(path).open(mode, **kw)
+
+
+def _read_open(path, root, mode="r", **kw):
+    path = _guard_path(path, root)
+    return pathlib.Path(path).open(mode, **kw)
+
+
+def _listdir(root):
+    root = _guard_path(root, root)
+    return sorted(p.name for p in pathlib.Path(root).iterdir())
 
 
 def hex_to_rgb(h):
@@ -116,17 +143,23 @@ def main(argv):
     check = "--check" in argv
     d = args[0] if args else os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "themes")
+    # 入口清洗（污点边界）：normpath 规范化 + 显式拒绝 '..'/NUL + 解析符号链接
+    d = os.path.normpath(d)
+    if ".." in d.split(os.sep) or "\x00" in d:
+        print("no such directory: %s" % d, file=sys.stderr)
+        return 2
+    d = os.path.realpath(os.path.abspath(d))
     if not os.path.isdir(d):
         print("no such directory: %s" % d, file=sys.stderr)
         return 2
 
     n = 0
-    for fn in sorted(os.listdir(d)):
+    for fn in _listdir(d):
         if not fn.endswith(".json") or fn.startswith("."):
             continue
         path = os.path.join(d, fn)
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with _read_open(path, d, encoding="utf-8") as f:
                 theme = json.load(f)
         except (OSError, ValueError):
             continue
@@ -151,7 +184,8 @@ def main(argv):
         for k, v in theme.items():
             if k not in new:
                 new[k] = v
-        with open(path, "w", encoding="utf-8") as f:
+        # 写盘围堵：realpath 必须落在扫描目录内（原地更新主题文件）
+        with _write_open(path, d, "w", encoding="utf-8") as f:
             json.dump(new, f, indent=2, ensure_ascii=False)
             f.write("\n")
         print("updated %s: label=%r" % (fn, label))

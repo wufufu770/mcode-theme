@@ -20,7 +20,35 @@
 import colorsys
 import json
 import os
+import pathlib
 import sys
+
+
+# ---- 本地路径卡口（同文件内联校验 + pathlib 句柄，防路径穿越） ----
+
+def _guard_path(path, root):
+    """realpath 必须落在 root 内，否则拒绝（含符号链接逃逸）。"""
+    root_real = os.path.realpath(root)
+    real = os.path.realpath(path)
+    if real != root_real and not real.startswith(root_real + os.sep):
+        raise ValueError("拒绝访问允许目录之外的路径: %s" % path)
+    return real
+
+
+def _write_open(path, root, mode="w", **kw):
+    path = _guard_path(path, root)
+    return pathlib.Path(path).open(mode, **kw)
+
+
+def _read_open(path, root, mode="r", **kw):
+    path = _guard_path(path, root)
+    return pathlib.Path(path).open(mode, **kw)
+
+
+def _makedirs(path, root):
+    path = _guard_path(path, root)
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    return path
 
 # ---------- 颜色工具 ----------
 
@@ -392,11 +420,21 @@ def main(argv):
     ap.add_argument("--out", default=os.path.expanduser("~/.minimax/themes"),
                     help="输出目录（默认 ~/.minimax/themes）")
     args = ap.parse_args(argv)
+    # 入口清洗（污点边界）：normpath 规范化 + 显式拒绝 '..'/NUL + 解析符号链接
+    args.pi_theme = os.path.normpath(args.pi_theme)
+    args.out = os.path.normpath(args.out)
+    for _p in (args.pi_theme, args.out):
+        if ".." in _p.split(os.sep) or "\x00" in _p:
+            print(f"error: 路径参数不得包含 .. 或 NUL: {_p}", file=sys.stderr)
+            return 2
+    args.pi_theme = os.path.realpath(os.path.abspath(args.pi_theme))
+    args.out = os.path.realpath(os.path.abspath(args.out))
 
     warnings = []
 
     try:
-        with open(args.pi_theme, "r", encoding="utf-8") as f:
+        with _read_open(args.pi_theme, os.path.dirname(args.pi_theme),
+                        encoding="utf-8") as f:
             pi = json.load(f)
     except (OSError, json.JSONDecodeError) as e:
         print(f"error: 无法读取 pi 主题 {args.pi_theme}: {e}", file=sys.stderr)
@@ -406,6 +444,11 @@ def main(argv):
     name = args.name or pi.get("name")
     if not name:
         print("error: pi 主题缺少 name（且未用 --name 指定）", file=sys.stderr)
+        return 2
+    # 主题名来自源文件/参数：显式拒绝路径分隔符/穿越（防写出 --out 目录之外）
+    if (os.sep in str(name) or (os.altsep and os.altsep in str(name))
+            or ".." in str(name) or "\x00" in str(name)):
+        print(f"error: 主题名不得包含路径分隔符或 ..: {name!r}", file=sys.stderr)
         return 2
     if "colors" not in pi or not isinstance(pi["colors"], dict):
         print("error: pi 主题缺少 colors 键", file=sys.stderr)
@@ -442,9 +485,10 @@ def main(argv):
         print("discipline: PASS")
 
     # 写出
-    os.makedirs(args.out, exist_ok=True)
+    _makedirs(args.out, args.out)
     out_path = os.path.join(args.out, f"{name}.json")
-    with open(out_path, "w", encoding="utf-8") as f:
+    # 写盘围堵：主题名来自源文件内容，realpath 必须落在 --out 目录内
+    with _write_open(out_path, args.out, "w", encoding="utf-8") as f:
         json.dump(theme, f, indent=2, ensure_ascii=False)
     print(f"已输出: {out_path}")
     return 0

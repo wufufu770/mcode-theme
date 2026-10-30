@@ -178,9 +178,15 @@ class ThemeServer(BaseHTTPRequestHandler):
         os.makedirs(mcode_theme_lib.LIB_DIR, exist_ok=True)
         # 明暗变体同名不同 appearance，文件名要区分（否则互相覆盖）
         lib_name = f"{name}.light.json" if appearance == "light" else f"{name}.json"
-        lib_path = os.path.join(mcode_theme_lib.LIB_DIR, lib_name)
-        with open(lib_path, "w", encoding="utf-8") as f:
-            json.dump(theme, f, ensure_ascii=False, indent=2)
+        # 路径围堵：name 来自 HTTP 请求，拒绝路径分隔符/穿越逃逸 LIB_DIR
+        try:
+            with mcode_theme_lib.safe_write_open(
+                    os.path.join(mcode_theme_lib.LIB_DIR, lib_name),
+                    mcode_theme_lib.LIB_DIR, "w", encoding="utf-8") as f:
+                json.dump(theme, f, ensure_ascii=False, indent=2)
+        except ValueError:
+            self._err("非法主题名（不允许路径分隔符或 '..'）")
+            return
         try:
             parsed = mcode_theme_lib.load_theme_dict(theme)
             native = mcode_theme_lib.to_native_theme(parsed)

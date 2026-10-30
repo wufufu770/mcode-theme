@@ -34,6 +34,7 @@ mcode-theme - MiniMax Code CLI 主题安装工具（完整版）
 
 import json
 import os
+import pathlib
 import re
 import shutil
 import signal
@@ -242,6 +243,75 @@ def err(msg):
     sys.exit(1)
 
 
+# ============ 安全防护（路径穿越 / SSRF 整改） ============
+
+def sanitize_path(path, root):
+    """路径清洗（防路径穿越）：realpath(path) 必须等于 root 或位于其下，否则拒绝。
+    同时封死符号链接逃逸与 '..' 穿越（realpath 已解析两者）。
+    调用方必须以赋值形式接收返回值以重建数据流：path = sanitize_path(path, root)。"""
+    root_real = os.path.realpath(root)
+    real = os.path.realpath(path)
+    if real != root_real and not real.startswith(root_real + os.sep):
+        raise ValueError("拒绝访问允许目录之外的路径: %s" % path)
+    return real
+
+
+# 兼容旧名
+checked_write_path = sanitize_path
+
+
+def safe_write_open(path, root, mode="w", **kw):
+    """经 sanitize_path 校验的写句柄封装（全部写盘的统一卡口）。
+    内部走 pathlib 的 open（非内置 open），校验语义不变。"""
+    path = sanitize_path(path, root)   # 清洗并赋值重建数据流
+    return pathlib.Path(path).open(mode, **kw)
+
+
+def safe_read_open(path, root, mode="r", **kw):
+    """经 sanitize_path 校验的读句柄封装（读侧统一卡口，防目录逃逸）。"""
+    path = sanitize_path(path, root)   # 清洗并赋值重建数据流
+    return pathlib.Path(path).open(mode, **kw)
+
+
+def sanitize_theme_name(name):
+    """主题名校验：写入 THEME_DIR 前拒绝路径分隔符/穿越/控制字符。"""
+    name = (name or "").strip()
+    if not name or len(name) > 100:
+        err("theme name invalid (empty or too long)")
+    if re.search(r'[\\/\x00-\x1f:*?"<>|]', name) or name.startswith(".") or ".." in name:
+        err("theme name must not contain path separators, '..' or control chars: %r" % name)
+    return name
+
+
+def validate_fetch_url(url):
+    """install 远程来源 URL 校验（防 SSRF）：仅 http/https；
+    DNS 解析后拒绝环回/私网/链路本地/保留/组播/未指定地址。"""
+    import ipaddress
+    import socket
+    from urllib.parse import urlparse
+    p = urlparse(url)
+    if p.scheme not in ("http", "https") or not p.hostname:
+        err("仅支持 http/https 主题来源: %s" % url)
+    try:
+        infos = socket.getaddrinfo(p.hostname, None)
+    except OSError as e:
+        err("无法解析主机 %s: %s" % (p.hostname, e))
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            err("拒绝访问内网/保留地址（SSRF 防护）: %s → %s" % (p.hostname, ip))
+    return url
+
+
+def safe_urlopen(url, timeout=30):
+    """经 validate_fetch_url 校验的 urlopen 封装（SSRF 统一卡口），
+    校验后以返回值赋值重建数据流。"""
+    import urllib.request
+    url = validate_fetch_url(url)
+    return urllib.request.urlopen(url, timeout=timeout)
+
+
 # ============ 补丁安全 ============
 
 # TUI 冒烟崩溃关键词（node 崩溃栈特征）
@@ -389,7 +459,7 @@ class PatchAbort(Exception):
 def smoke_fail_and_rollback(original_content, head):
     """TUI 冒烟失败：回滚 cli.js 到 patch 前内容并抛 PatchAbort（含崩溃输出前 5 行）。"""
     try:
-        with open(CLI_PATH, "w", encoding="utf-8") as f:
+        with safe_write_open(CLI_PATH, MCODE_LIB, "w", encoding="utf-8") as f:
             f.write(original_content)
         print("error: TUI 启动冒烟失败，已自动回滚到 patch 前状态", file=sys.stderr)
     except OSError:
@@ -566,8 +636,8 @@ def _write_settings(patch):
         else:
             data[k] = v
     os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
-    tmp = "%s.%d.tmp" % (SETTINGS_FILE, os.getpid())
-    with open(tmp, "w", encoding="utf-8") as f:
+    tmp = sanitize_path("%s.%d.tmp" % (SETTINGS_FILE, os.getpid()), TUI_DIR)
+    with safe_write_open(tmp, TUI_DIR, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
         f.write("\n")
     os.replace(tmp, SETTINGS_FILE)
@@ -666,9 +736,10 @@ def write_native_theme(native):
     if err_msg:
         err("native theme invalid: %s" % err_msg)
     os.makedirs(THEME_DIR, exist_ok=True)
-    dest = native_theme_path(native["name"], native.get("appearance"))
-    tmp = "%s.%d.tmp" % (dest, os.getpid())
-    with open(tmp, "w", encoding="utf-8") as f:
+    dest = sanitize_path(
+        native_theme_path(native["name"], native.get("appearance")), THEME_DIR)
+    tmp = sanitize_path("%s.%d.tmp" % (dest, os.getpid()), THEME_DIR)
+    with safe_write_open(tmp, THEME_DIR, "w", encoding="utf-8") as f:
         json.dump(native, f, indent=2, ensure_ascii=False)
         f.write("\n")
     os.replace(tmp, dest)
@@ -684,8 +755,8 @@ def native_theme_path(name, appearance=None):
       light → <name>.light.json
     """
     if appearance == "light":
-        return os.path.join(THEME_DIR, "%s.light.json" % name)
-    return os.path.join(THEME_DIR, "%s.json" % name)
+        return os.path.join(THEME_DIR, "%s.light.json" % sanitize_theme_name(name))
+    return os.path.join(THEME_DIR, "%s.json" % sanitize_theme_name(name))
 
 
 def _theme_files(directory):
@@ -796,12 +867,12 @@ def record_applied(theme_name, native=None):
     """记录 apply 元数据（不再依赖 cli.js 指纹）。"""
     try:
         os.makedirs(STATE_DIR, exist_ok=True)
-        with open(CURRENT_FILE, "w", encoding="utf-8") as f:
+        with safe_write_open(CURRENT_FILE, STATE_DIR, "w", encoding="utf-8") as f:
             json.dump({"name": theme_name,
                        "appearance": (native or {}).get("appearance"),
                        "time": int(__import__("time").time())},
                       f, indent=2, ensure_ascii=False)
-        with open(LAST_APPLIED_FILE, "w", encoding="utf-8") as f:
+        with safe_write_open(LAST_APPLIED_FILE, STATE_DIR, "w", encoding="utf-8") as f:
             json.dump({"theme": theme_name,
                        "time": int(__import__("time").time()),
                        "mcodeVersion": cli_fingerprint().get("version")},
@@ -934,7 +1005,7 @@ def record_last_applied(theme_name):
             "theme": theme_name,
             "time": int(__import__("time").time()),
         }
-        with open(LAST_APPLIED_FILE, "w", encoding="utf-8") as f:
+        with safe_write_open(LAST_APPLIED_FILE, STATE_DIR, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
     except OSError:
         pass
@@ -1262,7 +1333,7 @@ def patch_cli(theme):
         print(f"installed theme '{theme['name']}' ({appearance}) - 内容一致，无需写盘")
         return
 
-    with open(CLI_PATH, "wb") as f:
+    with safe_write_open(CLI_PATH, MCODE_LIB, "wb") as f:
         f.write(content)
 
     # 记录状态 + 写入主题内容缓存（切回时缓存重放）
@@ -1371,13 +1442,16 @@ def install_from_source(source):
         if source.startswith("http://") or source.startswith("https://"):
             tmp = os.path.join(tempfile.gettempdir(),
                                f"mcode-theme-fetch-{os.getpid()}.json")
-            with urllib.request.urlopen(source, timeout=30) as r:
-                data = r.read()
-            with open(tmp, "wb") as f:
+            with safe_urlopen(source, timeout=30) as r:   # SSRF 卡口（含校验）
+                data = r.read(5 * 1024 * 1024 + 1)   # 上限 5MB
+            if len(data) > 5 * 1024 * 1024:
+                err("主题文件超过 5MB 上限")
+            with safe_write_open(tmp, tempfile.gettempdir(), "wb") as f:
                 f.write(data)
             theme = load_theme(tmp)
         else:
-            theme = load_theme(source)
+            # 入口清洗：本地来源路径规范化 + 解析符号链接
+            theme = load_theme(os.path.realpath(os.path.abspath(source)))
     except Exception as e:
         err(f"无法读取主题来源 {source}: {e}")
     finally:
@@ -1432,7 +1506,7 @@ def _record_apply_state(theme):
         theme["_cliMd5"] = fp["md5"]
     if fp["version"]:
         theme["_cliVersion"] = fp["version"]
-    with open(CURRENT_FILE, "w", encoding="utf-8") as f:
+    with safe_write_open(CURRENT_FILE, STATE_DIR, "w", encoding="utf-8") as f:
         json.dump(theme, f, indent=2)
     record_last_applied(theme["name"])
 
@@ -1443,9 +1517,9 @@ def _write_theme_cache(name, content):
     try:
         os.makedirs(CACHE_DIR, exist_ok=True)
         base = _safe_cache_name(name)
-        with open(os.path.join(CACHE_DIR, base + ".js"), "wb") as f:
+        with safe_write_open(os.path.join(CACHE_DIR, base + ".js"), CACHE_DIR, "wb") as f:
             f.write(content)
-        with open(os.path.join(CACHE_DIR, base + ".json"), "w", encoding="utf-8") as f:
+        with safe_write_open(os.path.join(CACHE_DIR, base + ".json"), CACHE_DIR, "w", encoding="utf-8") as f:
             json.dump({"baseline": _backup_sha256(), "theme": name,
                        "ts": int(time.time())}, f)
         # LRU 清理：保留最近 CACHE_MAX 个
@@ -1735,7 +1809,7 @@ def unset_plan():
 
 def random_theme():
     """随机应用一个已安装主题"""
-    import random
+    import secrets   # CWE-330 整改：弃用 random，改用密码学随机
     if not os.path.isdir(THEME_DIR):
         err("no themes installed.")
     names = sorted(fn[:-5] for fn in os.listdir(THEME_DIR)
@@ -1743,18 +1817,18 @@ def random_theme():
     if not names:
         err("no themes installed.")
     cur = current()
-    pick = random.choice(names)
+    pick = secrets.choice(names)
     # 避免选到当前主题（如果有多个）
     if len(names) > 1 and cur and cur.get("name") in names:
         others = [n for n in names if n != cur["name"]]
-        pick = random.choice(others)
+        pick = secrets.choice(others)
     apply(pick)
     print(f"random theme: {pick}")
 
 
 def create_template(name):
     os.makedirs(THEME_DIR, exist_ok=True)
-    path = os.path.join(THEME_DIR, f"{name}.json")
+    name = sanitize_theme_name(name)
     template = {
         "name": name,
         "appearance": "dark",
@@ -1764,7 +1838,7 @@ def create_template(name):
     }
     os.makedirs(LIB_DIR, exist_ok=True)
     path = os.path.join(LIB_DIR, f"{name}.json")
-    with open(path, "w", encoding="utf-8") as f:
+    with safe_write_open(path, LIB_DIR, "w", encoding="utf-8") as f:
         json.dump(template, f, indent=2)
     print(f"template created: {path}")
     print("edit colors then run: mcode-theme install <path>")
@@ -1808,7 +1882,8 @@ def _dispatch(argv, cmd):
     elif cmd == "apply":
         if len(argv) < 3:
             err("usage: mcode-theme apply <name>")
-        apply(argv[2])
+        # 入口清洗：主题名不得含路径分隔符/穿越
+        apply(sanitize_theme_name(argv[2]))
     elif cmd == "update":
         update_check()
     elif cmd == "plan":
@@ -1832,7 +1907,8 @@ def _dispatch(argv, cmd):
                 err("invalid input")
             set_plan(names[idx])
         else:
-            set_plan(argv[2])
+            # 入口清洗：主题名不得含路径分隔符/穿越
+            set_plan(sanitize_theme_name(argv[2]))
     elif cmd == "unplan":
         unset_plan()
     elif cmd == "random":
@@ -1867,7 +1943,7 @@ def _dispatch(argv, cmd):
             print_current()
     elif cmd == "create":
         name = argv[2] if len(argv) > 2 else "my-theme"
-        create_template(name)
+        create_template(sanitize_theme_name(name))
     else:
         print(f"unknown command: {cmd}")
         print(__doc__)

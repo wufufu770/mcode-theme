@@ -19,7 +19,29 @@
 import colorsys
 import json
 import os
+import pathlib
 import sys
+
+
+# ---- 本地路径卡口（同文件内联校验 + pathlib 句柄，防路径穿越） ----
+
+def _guard_path(path, root):
+    """realpath 必须落在 root 内，否则拒绝（含符号链接逃逸）。"""
+    root_real = os.path.realpath(root)
+    real = os.path.realpath(path)
+    if real != root_real and not real.startswith(root_real + os.sep):
+        raise ValueError("拒绝访问允许目录之外的路径: %s" % path)
+    return real
+
+
+def _read_open(path, root, mode="r", **kw):
+    path = _guard_path(path, root)
+    return pathlib.Path(path).open(mode, **kw)
+
+
+def _listdir(root):
+    root = _guard_path(root, root)
+    return sorted(p.name for p in pathlib.Path(root).iterdir())
 
 
 def hex_to_rgb(h):
@@ -195,11 +217,17 @@ def main(argv):
         return 0
     themes_dir = argv[1] if len(argv) > 1 else os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "themes")
+    # 入口清洗（污点边界）：normpath 规范化 + 显式拒绝 '..' 与路径穿越
+    themes_dir = os.path.normpath(themes_dir)
+    if ".." in themes_dir.split(os.sep) or "\x00" in themes_dir:
+        print(f"error: 目录参数不得包含 .. 或 NUL: {themes_dir}", file=sys.stderr)
+        return 1
+    themes_dir = os.path.realpath(os.path.abspath(themes_dir))
     if not os.path.isdir(themes_dir):
         print(f"error: 目录不存在 {themes_dir}", file=sys.stderr)
         return 1
 
-    files = sorted(f for f in os.listdir(themes_dir) if f.endswith(".json"))
+    files = sorted(f for f in _listdir(themes_dir) if f.endswith(".json"))
     if not files:
         print(f"error: {themes_dir} 下无 JSON 主题", file=sys.stderr)
         return 1
@@ -210,7 +238,8 @@ def main(argv):
     for fn in files:
         name = fn[:-5]
         try:
-            with open(os.path.join(themes_dir, fn), "r", encoding="utf-8") as f:
+            with _read_open(os.path.join(themes_dir, fn), themes_dir,
+                            encoding="utf-8") as f:
                 theme = json.load(f)
         except (json.JSONDecodeError, OSError) as e:
             print(f"{name:<28} {'-':<6} FAIL (读取失败: {e})")

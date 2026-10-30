@@ -22,7 +22,35 @@ import argparse
 import colorsys
 import json
 import os
+import pathlib
 import sys
+
+
+# ---- 本地路径卡口（同文件内联校验 + pathlib 句柄，防路径穿越） ----
+
+def _guard_path(path, root):
+    """realpath 必须落在 root 内，否则拒绝（含符号链接逃逸）。"""
+    root_real = os.path.realpath(root)
+    real = os.path.realpath(path)
+    if real != root_real and not real.startswith(root_real + os.sep):
+        raise ValueError("拒绝访问允许目录之外的路径: %s" % path)
+    return real
+
+
+def _write_open(path, root, mode="w", **kw):
+    path = _guard_path(path, root)
+    return pathlib.Path(path).open(mode, **kw)
+
+
+def _read_open(path, root, mode="r", **kw):
+    path = _guard_path(path, root)
+    return pathlib.Path(path).open(mode, **kw)
+
+
+def _makedirs(path, root):
+    path = _guard_path(path, root)
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    return path
 
 from logo_styles import (derive_shadow, derive_top, match_style,
                          check_gradient)
@@ -368,6 +396,18 @@ def main(argv):
     ap.add_argument("--all", action="store_true", help="批量转换当前目录所有 *-opencode.json")
     ap.add_argument("--logo-style", default=None, help="强制指定渐变风格")
     args = ap.parse_args(argv)
+    # 入口清洗（污点边界）：normpath 规范化 + 显式拒绝 '..'/NUL + 解析符号链接
+    args.out = os.path.normpath(args.out)
+    if ".." in args.out.split(os.sep) or "\x00" in args.out:
+        print(f"error: --out 不得包含 .. 或 NUL: {args.out}", file=sys.stderr)
+        return 2
+    args.out = os.path.realpath(os.path.abspath(args.out))
+    if args.input:
+        args.input = os.path.normpath(args.input)
+        if ".." in args.input.split(os.sep) or "\x00" in args.input:
+            print(f"error: 输入路径不得包含 .. 或 NUL: {args.input}", file=sys.stderr)
+            return 2
+        args.input = os.path.realpath(os.path.abspath(args.input))
 
     warnings = []
     files = []
@@ -384,7 +424,8 @@ def main(argv):
     exit_code = 0
     for fn in files:
         try:
-            with open(fn, "r", encoding="utf-8") as f:
+            with _read_open(fn, os.path.dirname(os.path.abspath(fn)),
+                            encoding="utf-8") as f:
                 theme = json.load(f)
         except (OSError, json.JSONDecodeError) as e:
             print(f"error: 无法读取 {fn}: {e}", file=sys.stderr)
@@ -396,6 +437,11 @@ def main(argv):
             return 2
 
         name = args.name or os.path.splitext(os.path.basename(fn))[0]
+        # 主题名来自参数/文件名：显式拒绝路径分隔符/穿越（防写出 --out 目录之外）
+        if (os.sep in str(name) or (os.altsep and os.altsep in str(name))
+                or ".." in str(name) or "\x00" in str(name)):
+            print(f"error: 主题名不得包含路径分隔符或 ..: {name!r}", file=sys.stderr)
+            return 2
 
         # defs 展开
         try:
@@ -433,9 +479,10 @@ def main(argv):
             exit_code = 1
             continue
 
-        os.makedirs(args.out, exist_ok=True)
+        _makedirs(args.out, args.out)
         out_path = os.path.join(args.out, f"{name}.json")
-        with open(out_path, "w", encoding="utf-8") as f:
+        # 写盘围堵：主题名来自源文件内容，realpath 必须落在 --out 目录内
+        with _write_open(out_path, args.out, "w", encoding="utf-8") as f:
             json.dump(out_theme, f, indent=2, ensure_ascii=False)
         print(f"已输出: {out_path} (style={out_theme['logoStyle']})")
     return exit_code

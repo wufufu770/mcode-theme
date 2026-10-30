@@ -14,6 +14,8 @@ import json
 import os
 import sys
 
+from mcode_theme_lib import safe_write_open
+
 from logo_styles import (STYLES, match_style, derive_shadow, derive_top,
                          check_gradient, hex_to_rgb, rgb_to_hsl)
 
@@ -342,7 +344,8 @@ def main():
                 print(f"error: {name}: {msg}")
         else:
             path = os.path.join(OUT, f"{name}.json")
-            with open(path, "w", encoding="utf-8") as f:
+            # 写盘围堵：realpath 必须落在输出目录内
+            with safe_write_open(path, OUT, "w", encoding="utf-8") as f:
                 json.dump(theme, f, indent=2)
             print(f"generated: {name} ✓")
     print(f"\n{len(THEMES)} themes -> {OUT}")

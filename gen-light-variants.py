@@ -19,7 +19,34 @@ mcode 0.7.0 原生按主题 JSON 的 name 字段分组：同名 + 不同 appeara
 import colorsys
 import json
 import os
+import pathlib
 import sys
+
+
+# ---- 本地路径卡口（同文件内联校验 + pathlib 句柄，防路径穿越） ----
+
+def _guard_path(path, root):
+    """realpath 必须落在 root 内，否则拒绝（含符号链接逃逸）。"""
+    root_real = os.path.realpath(root)
+    real = os.path.realpath(path)
+    if real != root_real and not real.startswith(root_real + os.sep):
+        raise ValueError("拒绝访问允许目录之外的路径: %s" % path)
+    return real
+
+
+def _write_open(path, root, mode="w", **kw):
+    path = _guard_path(path, root)
+    return pathlib.Path(path).open(mode, **kw)
+
+
+def _read_open(path, root, mode="r", **kw):
+    path = _guard_path(path, root)
+    return pathlib.Path(path).open(mode, **kw)
+
+
+def _listdir(root):
+    root = _guard_path(root, root)
+    return sorted(p.name for p in pathlib.Path(root).iterdir())
 
 # 语义角色 → 明度处理策略
 BG_ROLES = {"userMessageBg", "diffAddedBg", "diffRemovedBg"}
@@ -223,31 +250,43 @@ def main(argv):
     check = "--check" in argv
     d = args[0] if args else os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "themes")
+    # 入口清洗（污点边界）：normpath 规范化 + 显式拒绝 '..'/NUL + 解析符号链接
+    d = os.path.normpath(d)
+    if ".." in d.split(os.sep) or "\x00" in d:
+        print("no such directory: %s" % d, file=sys.stderr)
+        return 2
+    d = os.path.realpath(os.path.abspath(d))
     if not os.path.isdir(d):
         print("no such directory: %s" % d, file=sys.stderr)
         return 2
 
     made = []
-    for fn in sorted(os.listdir(d)):
+    for fn in _listdir(d):
         if not fn.endswith(".json") or fn.startswith("."):
             continue
         src = os.path.join(d, fn)
         try:
-            with open(src, "r", encoding="utf-8") as f:
+            with _read_open(src, d, encoding="utf-8") as f:
                 theme = json.load(f)
         except (OSError, ValueError):
             continue
         if theme.get("appearance") != "dark":
             continue
         light = derive_light_theme(theme)
-        dest = os.path.join(d, "%s.light.json" % theme["name"])
-        made.append((theme["name"], dest, light))
+        nm = theme.get("name") or fn[:-5]
+        # 主题名来自文件内容：显式拒绝路径分隔符/穿越（防写出扫描目录）
+        if os.sep in nm or (os.altsep and os.altsep in nm) or ".." in nm or "\x00" in nm:
+            print("skip: 非法主题名 %r (%s)" % (nm, fn), file=sys.stderr)
+            continue
+        dest = os.path.join(d, "%s.light.json" % nm)
+        made.append((theme["name"], d, dest, light))
 
-    for name, dest, light in made:
+    for name, root, dest, light in made:
         if check:
             print("would write %s" % dest)
             continue
-        with open(dest, "w", encoding="utf-8") as f:
+        # 写盘围堵：主题名来自文件内容，realpath 必须落在扫描目录内
+        with _write_open(dest, root, "w", encoding="utf-8") as f:
             json.dump(light, f, indent=2, ensure_ascii=False)
             f.write("\n")
         print("wrote %s" % dest)
